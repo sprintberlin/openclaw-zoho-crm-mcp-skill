@@ -1,5 +1,5 @@
 ---
-name: zoho-crm-mcp
+name: Zoho CRM MCP
 version: 0.1.1
 description: Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts for common CRM operations.
 ---
