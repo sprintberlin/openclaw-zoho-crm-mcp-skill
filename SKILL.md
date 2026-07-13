@@ -7,6 +7,10 @@ description: Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, l
 
 Connect your OpenClaw agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
 
+## Source Repository
+
+GitHub source: [sprintberlin/openclaw-zoho-crm-mcp-skill](https://github.com/sprintberlin/openclaw-zoho-crm-mcp-skill)
+
 ## Requirements
 
 | Requirement | Details |

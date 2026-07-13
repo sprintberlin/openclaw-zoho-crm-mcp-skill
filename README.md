@@ -4,6 +4,8 @@ Public source repository for the ClawHub skill `@sprintcx/zoho-crm-mcp`.
 
 The skill connects an OpenClaw agent to Zoho CRM through Zoho's MCP endpoint and includes helper scripts for contacts, accounts, generic module searches, and COQL queries through `mcporter`.
 
+ClawHub page: <https://clawhub.ai/sprintcx/skills/zoho-crm-mcp>
+
 ## Files
 
 - `SKILL.md`: ClawHub/OpenClaw skill instructions.
@@ -50,10 +52,11 @@ Publish under the SprintCX ClawHub organization and attach GitHub source metadat
 ```bash
 clawhub skill publish . \
   --slug zoho-crm-mcp \
+  --name "Zoho CRM MCP" \
   --owner sprintcx \
-  --version 1.3.1 \
+  --version 1.3.2 \
   --source-repo sprintberlin/openclaw-zoho-crm-mcp-skill \
   --source-ref main \
   --source-path . \
-  --changelog "Move source to GitHub and remove shell-based mcporter calls"
+  --changelog "Expose GitHub source link in the skill documentation"
 ```

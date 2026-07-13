@@ -27,6 +27,7 @@ Mitigation: Enable only the CRM actions needed for the use case and avoid delete
 
 ## Reference(s): <br>
 - [Zoho CRM MCP ClawHub page](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp) <br>
+- [GitHub source repository](https://github.com/sprintberlin/openclaw-zoho-crm-mcp-skill) <br>
 - [Zoho MCP portal](https://mcp.zoho.eu) <br>
 
 
@@ -37,7 +38,7 @@ Mitigation: Enable only the CRM actions needed for the use case and avoid delete
 **Other Properties Related to Output:** [Requires a ZOHO_MCP_URL endpoint; bundled helper scripts can print table or JSON output from Zoho CRM MCP calls.] <br>
 
 ## Skill Version(s): <br>
-1.3.1 (GitHub source release) <br>
+1.3.2 (GitHub source link release) <br>
 
 ## Ethical Considerations: <br>
 Users should evaluate whether this skill is appropriate for their environment, review any generated or modified files before relying on them, and apply their organization's safety, security, and compliance requirements before deployment. <br>
