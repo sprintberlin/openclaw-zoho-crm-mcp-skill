@@ -1,7 +1,7 @@
 ---
 name: Zoho CRM MCP
-version: 0.1.1
-description: Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts for common CRM operations.
+version: 0.2.0
+description: Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
 ---
 
 # Zoho CRM MCP
@@ -102,6 +102,27 @@ mcporter call "$ZOHO_MCP_URL.ZohoCRM_executeCOQLQuery" --args "$(< /tmp/zoho_coq
 Ready-to-use scripts for common CRM operations. All scripts require `ZOHO_MCP_URL` to be set.
 
 The bundled Python scripts call `mcporter` directly through `subprocess.run([...])` and do not invoke a shell. This avoids shell expansion of the credential-bearing `ZOHO_MCP_URL`.
+
+`list_contacts.py` and `list_accounts.py` paginate automatically (they follow `more_records` until the full result set is retrieved) and normalize the different Zoho CRM MCP response shapes, so large modules are never silently truncated.
+
+### Custom fields and filters
+
+Every Zoho org has different custom fields. Instead of hard-coding them, the list scripts accept:
+
+- `--fields F1,F2,...` — request any Zoho field **API names** (comma-separated), including org-specific custom fields (e.g. `Google_Drive_URL`, `Trello_URL`). Unknown fields appear under their API name in the table header.
+- `--where "<COQL clause>"` (`list_accounts.py` only) — override the default WHERE filter, e.g. `--where "Google_Drive_URL != ''"`.
+
+```bash
+# Contacts with custom columns
+python3 scripts/list_contacts.py --fields First_Name,Last_Name,Email,Designation
+
+# Accounts filtered on a custom field, showing custom columns
+python3 scripts/list_accounts.py \
+  --where "Google_Drive_URL != ''" \
+  --fields Account_Name,Website,Google_Drive_URL,Trello_URL,Trello_ID
+```
+
+Use `getFields` (see below) to discover the exact API names of your custom fields.
 
 ### list_contacts.py - Search and list contacts
 ```bash
@@ -227,7 +248,7 @@ SELECT Id, Account_Name, Billing_City FROM Accounts WHERE Billing_City = 'Berlin
 
 ## Troubleshooting
 
-### "ZOHO_MCP_URL nicht gesetzt" / "ZOHO_MCP_URL not set"
+### "ZOHO_MCP_URL not set"
 Set the environment variable with your MCP endpoint URL. See "Environment Variable Setup" above.
 
 ### "Mandatory query param module is not present"

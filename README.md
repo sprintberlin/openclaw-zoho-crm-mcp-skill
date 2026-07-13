@@ -2,7 +2,7 @@
 
 Connect your OpenClaw agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
 
-This repository contains the public source for the ClawHub skill [`@sprintcx/zoho-crm-mcp`](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp).
+This repository contains the public source for the ClawHub skill [`@sprintcx/zoho-crm-mcp-openclaw-skill`](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp-openclaw-skill).
 
 ## What This Skill Includes
 
@@ -144,7 +144,16 @@ python3 scripts/list_accounts.py --all
 
 # JSON output
 python3 scripts/list_accounts.py --json
+
+# Custom fields and a custom WHERE filter (e.g. org-specific fields)
+python3 scripts/list_accounts.py \
+  --where "Google_Drive_URL != ''" \
+  --fields Account_Name,Website,Google_Drive_URL,Trello_URL,Trello_ID
 ```
+
+Both `list_contacts.py` and `list_accounts.py` paginate automatically and accept
+`--fields F1,F2,...` to request any Zoho field API names, including org-specific
+custom fields.
 
 ### `search_records.py`
 
@@ -291,10 +300,10 @@ Publish under the SprintCX ClawHub organization:
 
 ```bash
 clawhub skill publish . \
-  --slug zoho-crm-mcp \
+  --slug zoho-crm-mcp-openclaw-skill \
   --name "Zoho CRM MCP" \
   --owner sprintcx \
-  --version 1.3.2 \
+  --version 0.2.0 \
   --source-repo sprintberlin/openclaw-zoho-crm-mcp-skill \
   --source-ref main \
   --source-path . \

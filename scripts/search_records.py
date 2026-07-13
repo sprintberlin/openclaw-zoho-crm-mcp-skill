@@ -42,6 +42,24 @@ def mcporter_call(tool, args):
         return {"error": result.stdout + result.stderr}
 
 
+def normalize_crm_result(result):
+    """Return a records list across CRM MCP response variants.
+
+    Records may arrive directly under "data" as a list, or nested as
+    {"data": {"data": [...], "info": {...}}}, or wrapped with a "message"
+    (e.g. no records). This normalizes all of them to a plain list.
+    """
+    payload = result.get("data", [])
+    if isinstance(payload, dict):
+        if "data" in payload:
+            return payload.get("data") or []
+        if "message" in payload:
+            return []
+    if isinstance(payload, list):
+        return payload
+    return []
+
+
 def search_module(module, search_term):
     """Search a module by name field."""
     name_field_map = {
@@ -100,7 +118,7 @@ def main():
         print(f"Error: {result['error']}", file=sys.stderr)
         sys.exit(1)
 
-    data = result.get("data", [])
+    data = normalize_crm_result(result)
 
     if json_mode:
         print(json.dumps(data, indent=2, ensure_ascii=False))

@@ -1,7 +1,7 @@
 {
-  "name": "zoho-crm-mcp",
-  "version": "0.1.1",
-  "description": "Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter.",
+  "name": "zoho-crm-mcp-openclaw-skill",
+  "version": "0.2.0",
+  "description": "Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Paginated, custom-field-aware helper scripts.",
   "author": "SprintCX",
   "license": "MIT"
 }
