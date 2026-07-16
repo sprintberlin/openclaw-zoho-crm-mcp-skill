@@ -1,12 +1,12 @@
 ---
-name: Zoho CRM MCP
-version: 0.2.0
-description: Connect your OpenClaw agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
+name: zoho-crm-mcp
+version: 1.4.0
+description: Connect your agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
 ---
 
 # Zoho CRM MCP
 
-Connect your OpenClaw agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
+Connect your agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
 
 ## Source Repository
 
@@ -17,7 +17,7 @@ GitHub source: [sprintberlin/openclaw-zoho-crm-mcp-skill](https://github.com/spr
 | Requirement | Details |
 |---|---|
 | Zoho CRM MCP Server | A configured endpoint from [mcp.zoho.eu](https://mcp.zoho.eu) |
-| mcporter | MCP client CLI (pre-installed with OpenClaw) |
+| mcporter | MCP client CLI (bundled with OpenClaw; elsewhere install via `npm i -g mcporter`) |
 | Environment variable | `ZOHO_MCP_URL` must be set (see below) |
 
 ### Environment Variable Setup

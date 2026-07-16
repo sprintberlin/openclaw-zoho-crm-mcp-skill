@@ -1,5 +1,5 @@
 ## Description: <br>
-Connects an OpenClaw agent to Zoho CRM through MCP so it can search contacts, list accounts, query records with COQL, and use mcporter-based helper scripts for common CRM operations. <br>
+Connects an agent to Zoho CRM through MCP so it can search contacts, list accounts, query records with COQL, and use mcporter-based helper scripts for common CRM operations. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -11,7 +11,7 @@ MIT <br>
 
 
 ## Use Case: <br>
-Developers and CRM operators use this skill to connect an OpenClaw agent to Zoho CRM via MCP, configure the required MCP endpoint, search CRM modules, list contacts and accounts, and run COQL queries through mcporter. <br>
+Developers and CRM operators use this skill to connect an agent to Zoho CRM via MCP, configure the required MCP endpoint, search CRM modules, list contacts and accounts, and run COQL queries through mcporter. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -26,7 +26,7 @@ Mitigation: Enable only the CRM actions needed for the use case and avoid delete
 
 
 ## Reference(s): <br>
-- [Zoho CRM MCP ClawHub page](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp-openclaw-skill) <br>
+- [Zoho CRM MCP ClawHub page](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp) <br>
 - [GitHub source repository](https://github.com/sprintberlin/openclaw-zoho-crm-mcp-skill) <br>
 - [Zoho MCP portal](https://mcp.zoho.eu) <br>
 
@@ -38,7 +38,7 @@ Mitigation: Enable only the CRM actions needed for the use case and avoid delete
 **Other Properties Related to Output:** [Requires a ZOHO_MCP_URL endpoint; bundled helper scripts can print table or JSON output from Zoho CRM MCP calls.] <br>
 
 ## Skill Version(s): <br>
-0.2.0 <br>
+1.4.0 <br>
 
 ## Ethical Considerations: <br>
 Users should evaluate whether this skill is appropriate for their environment, review any generated or modified files before relying on them, and apply their organization's safety, security, and compliance requirements before deployment. <br>

@@ -1,12 +1,12 @@
 # Zoho CRM MCP
 
-Connect your OpenClaw agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
+Connect your agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
 
-This repository contains the public source for the ClawHub skill [`@sprintcx/zoho-crm-mcp-openclaw-skill`](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp-openclaw-skill).
+This repository contains the public source for the ClawHub skill [`@sprintcx/zoho-crm-mcp`](https://clawhub.ai/sprintcx/skills/zoho-crm-mcp).
 
 ## What This Skill Includes
 
-- OpenClaw/ClawHub skill instructions in `SKILL.md`
+- Agent Skill instructions in `SKILL.md` (portable SKILL.md format)
 - ClawHub release card metadata in `skill-card.md`
 - Ready-to-use Python helpers for contacts, accounts, generic module search, and COQL
 - Security-conscious `mcporter` calls through `subprocess.run([...])` without shell expansion
@@ -16,7 +16,7 @@ This repository contains the public source for the ClawHub skill [`@sprintcx/zoh
 | Requirement | Details |
 |---|---|
 | Zoho CRM MCP Server | A configured endpoint from [mcp.zoho.eu](https://mcp.zoho.eu) |
-| mcporter | MCP client CLI, pre-installed with OpenClaw |
+| mcporter | MCP client CLI (bundled with OpenClaw; elsewhere `npm i -g mcporter`) |
 | Environment variable | `ZOHO_MCP_URL` must be set |
 
 ### Environment Variable Setup
@@ -282,7 +282,7 @@ Zoho CRM shows display labels in the UI, but the API uses `api_name` values, for
 
 ## Repository Files
 
-- `SKILL.md`: ClawHub/OpenClaw skill instructions.
+- `SKILL.md`: Agent Skill instructions.
 - `skill-card.md`: ClawHub release card metadata.
 - `scripts/list_contacts.py`: List or search Zoho CRM contacts.
 - `scripts/list_accounts.py`: List or search Zoho CRM accounts.
@@ -300,10 +300,10 @@ Publish under the SprintCX ClawHub organization:
 
 ```bash
 clawhub skill publish . \
-  --slug zoho-crm-mcp-openclaw-skill \
+  --slug zoho-crm-mcp \
   --name "Zoho CRM MCP" \
   --owner sprintcx \
-  --version 0.2.0 \
+  --version 1.4.0 \
   --source-repo sprintberlin/openclaw-zoho-crm-mcp-skill \
   --source-ref main \
   --source-path . \
