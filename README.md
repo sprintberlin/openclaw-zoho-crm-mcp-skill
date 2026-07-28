@@ -163,6 +163,9 @@ python3 scripts/search_records.py Contacts "Smith"
 python3 scripts/search_records.py Accounts "Acme Corp"
 python3 scripts/search_records.py Deals "Project X"
 
+# COQL query with explicit fields
+python3 scripts/search_records.py Leads --fields id,Last_Name,Company,Email --coql "Last_Name != ''" --json
+
 # COQL query on any module
 python3 scripts/search_records.py Contacts --coql "Email != ''" --json
 ```
@@ -303,7 +306,7 @@ clawhub skill publish . \
   --slug zoho-crm-mcp \
   --name "Zoho CRM MCP" \
   --owner sprintcx \
-  --version 1.4.0 \
+  --version 1.4.1 \
   --source-repo sprintberlin/openclaw-zoho-crm-mcp-skill \
   --source-ref main \
   --source-path . \

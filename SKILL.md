@@ -1,6 +1,6 @@
 ---
 name: zoho-crm-mcp
-version: 1.4.0
+version: 1.4.1
 description: Connect your agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
 ---
 
@@ -160,6 +160,9 @@ python3 scripts/list_accounts.py --json
 python3 scripts/search_records.py Contacts "Smith"
 python3 scripts/search_records.py Accounts "Acme Corp"
 python3 scripts/search_records.py Deals "Project X"
+
+# COQL query with explicit fields
+python3 scripts/search_records.py Leads --fields id,Last_Name,Company,Email --coql "Last_Name != ''" --json
 
 # COQL query on any module
 python3 scripts/search_records.py Contacts --coql "Email != ''" --json

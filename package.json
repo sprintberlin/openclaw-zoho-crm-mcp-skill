@@ -1,6 +1,6 @@
 {
   "name": "zoho-crm-mcp",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Connect your agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Paginated, custom-field-aware helper scripts.",
   "author": "SprintCX",
   "license": "MIT"
