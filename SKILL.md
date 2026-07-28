@@ -1,7 +1,7 @@
 ---
 name: zoho-crm-mcp
-version: 1.4.1
-description: Connect your agent to Zoho CRM via MCP. Search contacts, list accounts, read and update CRM records, and optionally query records with COQL using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
+version: 1.4.0
+description: Connect your agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
 ---
 
 # Zoho CRM MCP
@@ -87,9 +87,7 @@ EOF
 mcporter call "$ZOHO_MCP_URL.ZohoCRM_getRecord" --args "$(< /tmp/zoho_record.json)"
 ```
 
-### Run a COQL query (SQL-like, optional)
-Only use this if `mcporter list $ZOHO_MCP_URL` shows `ZohoCRM_executeCOQLQuery`.
-
+### Run a COQL query (SQL-like)
 ```bash
 cat << 'EOF' > /tmp/zoho_coql.json
 {
@@ -107,18 +105,20 @@ The bundled Python scripts call `mcporter` directly through `subprocess.run([...
 
 `list_contacts.py` and `list_accounts.py` paginate automatically (they follow `more_records` until the full result set is retrieved) and normalize the different Zoho CRM MCP response shapes, so large modules are never silently truncated.
 
-### Custom fields
+### Custom fields and filters
 
 Every Zoho org has different custom fields. Instead of hard-coding them, the list scripts accept:
 
 - `--fields F1,F2,...` — request any Zoho field **API names** (comma-separated), including org-specific custom fields (e.g. `Google_Drive_URL`, `Trello_URL`). Unknown fields appear under their API name in the table header.
+- `--where "<COQL clause>"` (`list_accounts.py` only) — override the default WHERE filter, e.g. `--where "Google_Drive_URL != ''"`.
 
 ```bash
 # Contacts with custom columns
 python3 scripts/list_contacts.py --fields First_Name,Last_Name,Email,Designation
 
-# Accounts with custom columns
+# Accounts filtered on a custom field, showing custom columns
 python3 scripts/list_accounts.py \
+  --where "Google_Drive_URL != ''" \
   --fields Account_Name,Website,Google_Drive_URL,Trello_URL,Trello_ID
 ```
 
@@ -161,10 +161,7 @@ python3 scripts/search_records.py Contacts "Smith"
 python3 scripts/search_records.py Accounts "Acme Corp"
 python3 scripts/search_records.py Deals "Project X"
 
-# List a module with explicit fields
-python3 scripts/search_records.py Leads --fields Last_Name,Company,Email,id --json
-
-# COQL query on any module, if executeCOQLQuery is enabled
+# COQL query on any module
 python3 scripts/search_records.py Contacts --coql "Email != ''" --json
 ```
 
@@ -187,7 +184,7 @@ For large result sets, use `page` and `per_page`:
 ```json
 {
   "path_variables": {"module": "Contacts"},
-  "query_params": {"fields": "Full_Name,Email,id", "page": 2, "per_page": 200}
+  "query_params": {"page": 2, "per_page": 200}
 }
 ```
 
@@ -211,12 +208,10 @@ For a fully capable CRM agent, enable these actions on your Zoho MCP server at [
 - `getFields` - Get field definitions for any module
 - `getRecord` / `getRecords` - Read individual or lists of records
 - `searchRecords` - Search by criteria (email, name, etc.)
+- `executeCOQLQuery` - SQL-like queries across modules
 - `getRecordCount` - Count records per module
 - `getRelatedRecords` - Read linked records (e.g., contacts of an account)
 - `getPickListValues` - Get dropdown options for fields
-
-Optional:
-- `executeCOQLQuery` - SQL-like queries across modules. The bundled list scripts do not require it.
 
 ### Read-write (for agents that create/update data)
 - `createRecords` - Create new records in any module

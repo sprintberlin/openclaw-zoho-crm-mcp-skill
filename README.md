@@ -8,7 +8,7 @@ This repository contains the public source for the ClawHub skill [`@sprintcx/zoh
 
 - Agent Skill instructions in `SKILL.md` (portable SKILL.md format)
 - ClawHub release card metadata in `skill-card.md`
-- Ready-to-use Python helpers for contacts, accounts, generic module search, and optional COQL
+- Ready-to-use Python helpers for contacts, accounts, generic module search, and COQL
 - Security-conscious `mcporter` calls through `subprocess.run([...])` without shell expansion
 
 ## Requirements
@@ -97,9 +97,7 @@ EOF
 mcporter call "$ZOHO_MCP_URL.ZohoCRM_getRecord" --args "$(< /tmp/zoho_record.json)"
 ```
 
-### Run a COQL query, if enabled
-
-Only use this if `mcporter list $ZOHO_MCP_URL` shows `ZohoCRM_executeCOQLQuery`.
+### Run a COQL query
 
 ```bash
 cat << 'EOF' > /tmp/zoho_coql.json
@@ -147,8 +145,9 @@ python3 scripts/list_accounts.py --all
 # JSON output
 python3 scripts/list_accounts.py --json
 
-# Custom fields
+# Custom fields and a custom WHERE filter (e.g. org-specific fields)
 python3 scripts/list_accounts.py \
+  --where "Google_Drive_URL != ''" \
   --fields Account_Name,Website,Google_Drive_URL,Trello_URL,Trello_ID
 ```
 
@@ -164,10 +163,7 @@ python3 scripts/search_records.py Contacts "Smith"
 python3 scripts/search_records.py Accounts "Acme Corp"
 python3 scripts/search_records.py Deals "Project X"
 
-# List a module with explicit fields
-python3 scripts/search_records.py Leads --fields Last_Name,Company,Email,id --json
-
-# COQL query on any module, if executeCOQLQuery is enabled
+# COQL query on any module
 python3 scripts/search_records.py Contacts --coql "Email != ''" --json
 ```
 
@@ -194,7 +190,7 @@ For large result sets, use `page` and `per_page`:
 ```json
 {
   "path_variables": {"module": "Contacts"},
-  "query_params": {"fields": "Full_Name,Email,id", "page": 2, "per_page": 200}
+  "query_params": {"page": 2, "per_page": 200}
 }
 ```
 
@@ -223,13 +219,10 @@ Safe starting point:
 - `getFields` - Get field definitions for any module
 - `getRecord` / `getRecords` - Read individual or lists of records
 - `searchRecords` - Search by criteria, for example email or name
+- `executeCOQLQuery` - SQL-like queries across modules
 - `getRecordCount` - Count records per module
 - `getRelatedRecords` - Read linked records, for example contacts of an account
 - `getPickListValues` - Get dropdown options for fields
-
-Optional:
-
-- `executeCOQLQuery` - SQL-like queries across modules. The bundled list scripts do not require it.
 
 ### Read-write
 
@@ -293,7 +286,7 @@ Zoho CRM shows display labels in the UI, but the API uses `api_name` values, for
 - `skill-card.md`: ClawHub release card metadata.
 - `scripts/list_contacts.py`: List or search Zoho CRM contacts.
 - `scripts/list_accounts.py`: List or search Zoho CRM accounts.
-- `scripts/search_records.py`: Generic Zoho CRM module listing/search and optional COQL helper.
+- `scripts/search_records.py`: Generic Zoho CRM module search and COQL helper.
 
 ## Security Notes
 

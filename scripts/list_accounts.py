@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 List Zoho CRM accounts (companies) or search by name.
-Uses getRecords via mcporter, with automatic pagination.
+Uses executeCOQLQuery via mcporter, with automatic pagination.
 
 Setup:
   export ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message"
@@ -11,12 +11,13 @@ Usage:
   python3 scripts/list_accounts.py --json                  # Raw JSON output
   python3 scripts/list_accounts.py --search "Acme"         # Search by company name
   python3 scripts/list_accounts.py --all                   # All accounts (no default filter)
+  python3 scripts/list_accounts.py --where "Google_Drive_URL != ''"   # Custom WHERE filter
   python3 scripts/list_accounts.py --fields Account_Name,Website,Google_Drive_URL,Trello_URL
 
-Custom fields:
+Custom fields / filters:
   --fields lets you list any Zoho field API names (comma-separated), including
-  org-specific custom fields. Field API names appear as-is in the header unless
-  a label exists.
+  org-specific custom fields. --where sets a custom COQL WHERE clause (overrides
+  the default). Field API names appear as-is in the header unless a label exists.
 
 Default fields: Account_Name, Website, Phone, Billing_City, Billing_Country, Industry, id
 """
@@ -27,7 +28,7 @@ import sys
 import os
 
 MCP_URL = os.environ.get("ZOHO_MCP_URL", "")
-TOOL = "ZohoCRM_getRecords"
+COQL_TOOL = "ZohoCRM_executeCOQLQuery"
 
 DEFAULT_FIELDS = ["Account_Name", "Website", "Phone", "Billing_City", "Billing_Country", "Industry", "id"]
 
@@ -78,22 +79,23 @@ def normalize_crm_result(result):
     return [], result.get("info", {})
 
 
-def query_accounts_page(fields, page=1, per_page=200):
-    """Fetch one accounts page using getRecords."""
-    args = {
-        "path_variables": {"module": "Accounts"},
-        "query_params": {"fields": ",".join(fields), "page": page, "per_page": per_page},
-    }
-    return _mcporter_call(TOOL, args)
+def query_accounts_page(fields, where_clause, offset=0, limit=100):
+    """Fetch one accounts page using executeCOQLQuery."""
+    fields_str = ", ".join(fields)
+    query = f"SELECT {fields_str} FROM Accounts"
+    if where_clause:
+        query += f" WHERE {where_clause}"
+    query += f" ORDER BY Account_Name LIMIT {offset}, {limit}"
+    return _mcporter_call(COQL_TOOL, {"body": {"select_query": query}})
 
 
-def query_all_accounts(fields, per_page=200):
-    """Fetch all accounts using paginated getRecords queries."""
+def query_all_accounts(fields, where_clause, per_page=100):
+    """Fetch all accounts using paginated COQL queries."""
     all_data = []
-    page = 1
+    offset = 0
 
     while True:
-        result = query_accounts_page(fields, page=page, per_page=per_page)
+        result = query_accounts_page(fields, where_clause, offset=offset, limit=per_page)
         if "error" in result:
             return result
 
@@ -105,7 +107,7 @@ def query_all_accounts(fields, per_page=200):
         if not info.get("more_records") or not data:
             break
 
-        page += 1
+        offset += len(data)
 
     return {"data": all_data, "info": {"count": len(all_data), "more_records": False}}
 
@@ -152,19 +154,28 @@ def main():
     show_all = "--all" in args
     search_term = None
     custom_fields = None
+    custom_where = None
 
     for i, arg in enumerate(args):
         if arg == "--search" and i + 1 < len(args):
             search_term = args[i + 1]
         elif arg == "--fields" and i + 1 < len(args):
             custom_fields = [f.strip() for f in args[i + 1].split(",") if f.strip()]
-        elif arg == "--where":
-            print("Error: --where requires COQL. Use search_records.py --coql on MCP servers with executeCOQLQuery enabled.", file=sys.stderr)
-            sys.exit(2)
+        elif arg == "--where" and i + 1 < len(args):
+            custom_where = args[i + 1]
 
     fields = custom_fields if custom_fields else DEFAULT_FIELDS
 
-    result = query_all_accounts(fields)
+    # Build WHERE clause. COQL has no LIKE/starts_with, so --search fetches a broad
+    # set and filters client-side.
+    if custom_where is not None:
+        where = custom_where
+    elif search_term or show_all:
+        where = "Account_Name != ''"
+    else:
+        where = "Website != ''"
+
+    result = query_all_accounts(fields, where)
 
     if "error" in result:
         print(f"Error: {result['error']}", file=sys.stderr)
@@ -175,8 +186,6 @@ def main():
     if search_term:
         search_lower = search_term.lower()
         data = [row for row in data if search_lower in (row.get("Account_Name", "") or "").lower()]
-    elif not show_all:
-        data = [row for row in data if row.get("Website")]
 
     if json_mode:
         print(json.dumps(data, indent=2, ensure_ascii=False))

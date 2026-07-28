@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Search records in any Zoho CRM module via mcporter.
-Uses ZohoCRM_searchRecords, getRecords, and optional executeCOQLQuery.
+Uses ZohoCRM_searchRecords and executeCOQLQuery.
 
 Setup:
   export ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message"
@@ -11,7 +11,6 @@ Usage:
   python3 scripts/search_records.py Accounts "Acme Corp"
   python3 scripts/search_records.py Deals "Project X"
   python3 scripts/search_records.py Leads "Leadname" --json
-  python3 scripts/search_records.py Leads --fields Last_Name,Company,Email,id --json
   python3 scripts/search_records.py Contacts --coql "Email != ''"
 """
 
@@ -79,24 +78,6 @@ def search_module(module, search_term):
     return mcporter_call("ZohoCRM_searchRecords", args)
 
 
-def default_fields_for_module(module):
-    return {
-        "Contacts": ["Full_Name", "Email", "Mobile", "Phone", "Account_Name", "id"],
-        "Accounts": ["Account_Name", "Website", "Phone", "Billing_City", "id"],
-        "Deals": ["Deal_Name", "Stage", "Amount", "Closing_Date", "Account_Name", "id"],
-        "Leads": ["Last_Name", "First_Name", "Company", "Email", "Phone", "Lead_Status", "id"],
-        "Products": ["Product_Name", "Product_Code", "Unit_Price", "id"],
-    }.get(module, ["id"])
-
-
-def list_module(module, fields, page=1, per_page=200):
-    args = {
-        "path_variables": {"module": module},
-        "query_params": {"fields": ",".join(fields), "page": page, "per_page": per_page},
-    }
-    return mcporter_call("ZohoCRM_getRecords", args)
-
-
 def coql_query(module, where_clause, limit=100):
     """Execute a COQL query on a module."""
     query = f"SELECT * FROM {module}"
@@ -117,16 +98,13 @@ def main():
     json_mode = "--json" in args
     search_term = None
     coql_where = None
-    fields = default_fields_for_module(module)
 
     for i, arg in enumerate(args):
         if arg == "--search" and i + 1 < len(args):
             search_term = args[i + 1]
         elif arg == "--coql" and i + 1 < len(args):
             coql_where = args[i + 1]
-        elif arg == "--fields" and i + 1 < len(args):
-            fields = [f.strip() for f in args[i + 1].split(",") if f.strip()]
-        elif not arg.startswith("-") and (i == 0 or args[i - 1] not in {"--search", "--coql", "--fields"}):
+        elif not arg.startswith("-") and (i == 0 or args[i - 1] not in {"--search", "--coql"}):
             search_term = arg
 
     if coql_where:
@@ -134,7 +112,7 @@ def main():
     elif search_term:
         result = search_module(module, search_term)
     else:
-        result = list_module(module, fields)
+        result = coql_query(module, "")
 
     if "error" in result:
         print(f"Error: {result['error']}", file=sys.stderr)
