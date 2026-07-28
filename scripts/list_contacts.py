@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 List Zoho CRM contacts or search by name.
-Uses ZohoCRM_searchRecords (name search) and executeCOQLQuery (full list) via mcporter.
+Uses ZohoCRM_getRecords (full list) and ZohoCRM_searchRecords (name search) via mcporter.
 
 Setup:
   export ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message"
@@ -28,11 +28,11 @@ import os
 
 MCP_URL = os.environ.get("ZOHO_MCP_URL", "")
 TOOL = "ZohoCRM_searchRecords"
-COQL_TOOL = "ZohoCRM_executeCOQLQuery"
+LIST_TOOL = "ZohoCRM_getRecords"
 
 DEFAULT_FIELDS = ["Full_Name", "Email", "Mobile", "Phone", "Account_Name", "Owner"]
-# Extra fields always requested via COQL so table rendering has what it needs.
-COQL_BASE_FIELDS = ["First_Name", "Last_Name", "id"]
+# Extra fields always requested so table rendering has what it needs.
+BASE_FIELDS = ["First_Name", "Last_Name", "id"]
 
 FIELD_LABELS = {
     "Full_Name": "Name",
@@ -86,23 +86,22 @@ def normalize_crm_result(result):
     return [], result.get("info", {})
 
 
-def query_contacts_page(fields, offset=0, limit=100):
-    """Fetch one contacts page using executeCOQLQuery."""
-    fields_str = ", ".join(fields)
-    query = (
-        f"SELECT {fields_str} FROM Contacts WHERE Last_Name != '' "
-        f"ORDER BY Last_Name LIMIT {offset}, {limit}"
-    )
-    return _mcporter_call(COQL_TOOL, {"body": {"select_query": query}})
+def query_contacts_page(fields, page=1, per_page=200):
+    """Fetch one contacts page using getRecords."""
+    args = {
+        "path_variables": {"module": "Contacts"},
+        "query_params": {"fields": ",".join(fields), "page": page, "per_page": per_page},
+    }
+    return _mcporter_call(LIST_TOOL, args)
 
 
-def query_all_contacts(fields, per_page=100):
-    """Fetch all contacts using paginated COQL queries."""
+def query_all_contacts(fields, per_page=200):
+    """Fetch all contacts using paginated getRecords queries."""
     all_data = []
-    offset = 0
+    page = 1
 
     while True:
-        result = query_contacts_page(fields, offset=offset, limit=per_page)
+        result = query_contacts_page(fields, page=page, per_page=per_page)
         if "error" in result:
             return result
 
@@ -114,7 +113,7 @@ def query_all_contacts(fields, per_page=100):
         if not info.get("more_records") or not data:
             break
 
-        offset += len(data)
+        page += 1
 
     return {"data": all_data, "info": {"count": len(all_data), "more_records": False}}
 
@@ -189,9 +188,8 @@ def main():
             print(f"Error: {result.get('error')}", file=sys.stderr)
             sys.exit(1)
     else:
-        # COQL needs an explicit field list; merge requested + base fields (dedup, keep order).
-        coql_fields = list(dict.fromkeys(table_fields + COQL_BASE_FIELDS))
-        result = query_all_contacts(coql_fields)
+        fields = list(dict.fromkeys(table_fields + BASE_FIELDS))
+        result = query_all_contacts(fields)
         if "error" in result:
             print(f"Error: {result['error']}", file=sys.stderr)
             sys.exit(1)
