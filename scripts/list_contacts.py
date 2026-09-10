@@ -135,7 +135,7 @@ def extract_table_field(contact, field):
     if not val:
         return "-"
     if isinstance(val, dict):
-        return val.get("name", str(val))
+        return str(val.get("name") or val)
     return str(val)
 
 
