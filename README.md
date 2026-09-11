@@ -220,16 +220,17 @@ This repository is the canonical home for both documents:
 
 - [`references/ACTION_PROFILES.md`](references/ACTION_PROFILES.md) contains
   copy-ready least-privilege profiles for a read-only analyst, a normal CRM
-  employee with create/update but no delete access, and optional sales
-  operations.
+  employee with create/update but no delete access, and a deliberately
+  unbundled developer/administrator role.
 - [`references/ZOHO_CRM_MCP_ACTIONS.md`](references/ZOHO_CRM_MCP_ACTIONS.md)
   contains the complete catalog of 1,291 known CRM Actions and descriptions.
 
 For a normal CRM employee, start with the **CRM Employee, read/write without
 delete** profile. It includes record reads, searches, `executeCOQLQuery`, record
-creation and updates, notes and tags. It deliberately excludes every delete
-Action, functions, workflows, layouts, fields, modules, mass changes and other
-administrative operations.
+creation and updates, notes and tags, CRM email sending, lead conversion, owner
+changes and Events. It deliberately excludes every delete Action, functions,
+workflows, layouts, fields, modules, mass changes and other administrative
+operations.
 
 After configuring the connection at [mcp.zoho.eu](https://mcp.zoho.eu), verify
 the actual result rather than trusting the profile document:
@@ -307,7 +308,7 @@ clawhub skill publish . \
   --slug zoho-crm-mcp \
   --name "Zoho CRM MCP" \
   --owner sprintcx \
-  --version 1.5.0 \
+  --version 1.5.1 \
   --source-repo sprintberlin/openclaw-zoho-crm-mcp-skill \
   --source-ref main \
   --source-path . \

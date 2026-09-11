@@ -92,6 +92,7 @@ The list helpers paginate and normalize common Zoho MCP response envelopes.
 
 ## COQL rules
 
+- `executeCOQLQuery` is mandatory in every recommended Action profile.
 - Query one base module at a time.
 - Use API names, not UI labels.
 - Select only required fields.
@@ -99,6 +100,15 @@ The list helpers paginate and normalize common Zoho MCP response envelopes.
 - Use ISO timestamps including timezone offsets.
 - Paginate explicitly and do not assume one page is complete.
 - Inspect the live `executeCOQLQuery` schema before the first call.
+
+## Higher-impact employee Actions
+
+The recommended CRM Employee profile includes `sendMail`, `convertLead`, `changeSingleRecordOwner`, `createEventsRecords`, and `updateEventsRecord` because these are normal CRM operations. Apply these safeguards:
+
+- Enabling `sendMail` gives technical capability, not authorization for a particular email. Follow the active communication approval policy and verify recipient, sender, subject and content before sending.
+- Read a Lead before `convertLead` and verify the resulting Account, Contact and Deal links afterward.
+- Resolve the target user before `changeSingleRecordOwner` and read the record back afterward.
+- Check participants, timezone, start and end time before creating or updating an Event.
 
 ## Attachments
 
@@ -117,5 +127,5 @@ Load the profile reference when configuring a connection. Load the full catalog 
 - Keep all delete Actions disabled by default.
 - Keep functions, workflows, blueprints, layouts, fields, modules, users, profiles, roles, sharing, sandboxes and CRM administration disabled for normal staff.
 - Avoid mass and bulk mutations in normal staff profiles.
-- `sendMail` and other outbound communication Actions require separate authorization and are not part of a default profile.
+- Email sending, lead conversion, owner changes and Events are allowed by the CRM Employee profile but still require task-level validation and any applicable approval.
 - Revoke and reconnect the affected MCP connection after an OAuth scope mismatch. Never switch to another customer's endpoint.
