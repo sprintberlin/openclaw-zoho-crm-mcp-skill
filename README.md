@@ -210,37 +210,36 @@ EOF
 mcporter call "$ZOHO_MCP_URL.ZohoCRM_getFields" --args "$(< /tmp/args.json)"
 ```
 
-## Recommended CRM Actions
+## CRM Action Catalog and Profiles
 
-For a fully capable CRM agent, enable these actions on your Zoho MCP server at [mcp.zoho.eu](https://mcp.zoho.eu).
+Zoho CRM exposes roughly 1,300 MCP Actions. Enabling all of them gives a normal
+agent unnecessary access to destructive operations, automation, functions and
+CRM administration.
 
-### Read-only
+This repository is the canonical home for both documents:
 
-Safe starting point:
+- [`references/ACTION_PROFILES.md`](references/ACTION_PROFILES.md) contains
+  copy-ready least-privilege profiles for a read-only analyst, a normal CRM
+  employee with create/update but no delete access, and optional sales
+  operations.
+- [`references/ZOHO_CRM_MCP_ACTIONS.md`](references/ZOHO_CRM_MCP_ACTIONS.md)
+  contains the complete catalog of 1,291 known CRM Actions and descriptions.
 
-- `getModules` - List all CRM modules
-- `getFields` - Get field definitions for any module
-- `getRecord` / `getRecords` - Read individual or lists of records
-- `searchRecords` - Search by criteria, for example email or name
-- `executeCOQLQuery` - SQL-like queries across modules
-- `getRecordCount` - Count records per module
-- `getRelatedRecords` - Read linked records, for example contacts of an account
-- `getPickListValues` - Get dropdown options for fields
+For a normal CRM employee, start with the **CRM Employee, read/write without
+delete** profile. It includes record reads, searches, `executeCOQLQuery`, record
+creation and updates, notes and tags. It deliberately excludes every delete
+Action, functions, workflows, layouts, fields, modules, mass changes and other
+administrative operations.
 
-### Read-write
+After configuring the connection at [mcp.zoho.eu](https://mcp.zoho.eu), verify
+the actual result rather than trusting the profile document:
 
-Only enable these when the agent should create or update CRM data:
+```bash
+mcporter list "$ZOHO_MCP_URL"
+```
 
-- `createRecords` - Create new records in any module
-- `updateRecord` - Update a single record by ID
-- `upsertRecords` - Insert or update records
-- `createNotes` - Add notes to records
-- `createEventsRecords` - Create calendar events
-- `createTags` / `postRemoveTags` - Manage tags
-
-### Avoid enabling by default
-
-- `deleteRecord` / `deleteRecords` - Only enable when specifically needed
+The profile and catalog use the Action names shown in the Zoho MCP setup UI.
+Runtime tool names normally add the `ZohoCRM_` prefix.
 
 ## COQL Reference
 
@@ -286,6 +285,8 @@ Zoho CRM shows display labels in the UI, but the API uses `api_name` values, for
 ## Repository Files
 
 - `SKILL.md`: Agent Skill instructions.
+- `references/ACTION_PROFILES.md`: Least-privilege Action profiles for new CRM MCP connections.
+- `references/ZOHO_CRM_MCP_ACTIONS.md`: Complete catalog of 1,291 known CRM Actions.
 - `skill-card.md`: ClawHub release card metadata.
 - `scripts/list_contacts.py`: List or search Zoho CRM contacts.
 - `scripts/list_accounts.py`: List or search Zoho CRM accounts.
@@ -306,7 +307,7 @@ clawhub skill publish . \
   --slug zoho-crm-mcp \
   --name "Zoho CRM MCP" \
   --owner sprintcx \
-  --version 1.4.1 \
+  --version 1.5.0 \
   --source-repo sprintberlin/openclaw-zoho-crm-mcp-skill \
   --source-ref main \
   --source-path . \

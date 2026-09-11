@@ -1,307 +1,121 @@
 ---
-name: zoho-crm-mcp
-version: 1.4.1
-description: Connect your agent to Zoho CRM via MCP. Search contacts, list accounts, query records with COQL, and manage CRM data using mcporter. Includes ready-to-use Python scripts with pagination and custom-field support for common CRM operations.
+name: "zoho-crm-mcp"
+description: "Zoho CRM via MCP with action catalog, least-privilege profiles, COQL, and record workflows."
 ---
 
 # Zoho CRM MCP
 
-Connect your agent to Zoho CRM through the Model Context Protocol (MCP). This skill provides everything you need to search, read, and manage CRM data using `mcporter`.
+Use Zoho CRM through an MCP endpoint from `mcp.zoho.eu`. This skill is the canonical home for CRM-specific MCP action documentation and least-privilege action profiles.
 
-## Source Repository
-
-GitHub source: [sprintberlin/openclaw-zoho-crm-mcp-skill](https://github.com/sprintberlin/openclaw-zoho-crm-mcp-skill)
+Source: [sprintberlin/openclaw-zoho-crm-mcp-skill](https://github.com/sprintberlin/openclaw-zoho-crm-mcp-skill)
 
 ## Requirements
 
-| Requirement | Details |
-|---|---|
-| Zoho CRM MCP Server | A configured endpoint from [mcp.zoho.eu](https://mcp.zoho.eu) |
-| mcporter | MCP client CLI (bundled with OpenClaw; elsewhere install via `npm i -g mcporter`) |
-| Environment variable | `ZOHO_MCP_URL` must be set (see below) |
+- A Zoho CRM MCP endpoint from `mcp.zoho.eu`
+- `mcporter`
+- `ZOHO_MCP_URL` for the bundled scripts
 
-### Environment Variable Setup
+Treat the endpoint as a credential. Never print it, commit it, or copy it into tickets and chats.
 
-This skill requires the `ZOHO_MCP_URL` environment variable. Without it, the Python scripts will not work.
+## First setup
 
-Add this to your shell profile (e.g. `~/.bashrc` or `~/.zshrc`):
+1. Create or open a Zoho CRM connection at `mcp.zoho.eu`.
+2. Select only the required Actions. Start with [references/ACTION_PROFILES.md](references/ACTION_PROFILES.md).
+3. Use [references/ZOHO_CRM_MCP_ACTIONS.md](references/ZOHO_CRM_MCP_ACTIONS.md) only when a profile lacks a required Action.
+4. Store the endpoint securely and expose it to the local process as `ZOHO_MCP_URL`.
+5. Check the actual server:
+
 ```bash
-export ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message"
+mcporter list "$ZOHO_MCP_URL"
 ```
 
-Or set it per session:
+The catalog describes possible Actions. It does not prove that an Action is enabled on a particular MCP server. Runtime tool names usually have the `ZohoCRM_` prefix, while the Zoho MCP setup UI uses the Action name without that prefix.
+
+## Safe workflow
+
+1. Confirm the correct Zoho account and organization. Never reuse an endpoint from another customer.
+2. Run `mcporter list "$ZOHO_MCP_URL"` and verify the required Action exists.
+3. Resolve module and field API names with `getModules` and `getFields` before querying or writing custom fields.
+4. Read the exact record before changing it.
+5. Use `searchRecords` for normal criteria and `executeCOQLQuery` for controlled field selection, filtering and pagination.
+6. For writes, send only intended fields and read the record back.
+7. Do not use delete, workflow, function, layout, field-creation, bulk-job, mass-update, or administrative Actions unless the task explicitly requires them.
+
+## Common calls
+
+List tools:
+
 ```bash
-ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message" python3 scripts/list_contacts.py
+mcporter list "$ZOHO_MCP_URL"
 ```
 
-To verify it's set:
+Search records:
+
 ```bash
-echo $ZOHO_MCP_URL
-```
-
-Treat `ZOHO_MCP_URL` like a password. It contains CRM access credentials.
-
-## How to Get Your MCP URL
-
-1. Go to [mcp.zoho.eu](https://mcp.zoho.eu) and sign in with your Zoho account.
-2. Click **Add Connection** or **New Connection**.
-3. Select **Zoho CRM** from the list of available apps.
-4. Choose the data center matching your Zoho account: EU, US, IN, AU, JP, or CN.
-5. Grant the requested OAuth scopes. Start with read-only access unless write actions are explicitly needed.
-6. After authorization, copy the generated **MCP endpoint URL**. It looks like:
-   `https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/abc123def456/message`
-7. Set it as `ZOHO_MCP_URL` as shown above.
-
-### Multiple Organizations
-
-If you manage multiple Zoho CRM orgs, each gets its own MCP endpoint. You can:
-- Set one default via `ZOHO_MCP_URL`
-- Pass others explicitly in scripts or mcporter calls
-
-## Quick Start
-
-### List available tools on your MCP server
-```bash
-mcporter list $ZOHO_MCP_URL
-```
-
-### Search for a contact by name
-```bash
-cat << 'EOF' > /tmp/zoho_search.json
+cat > /tmp/zoho_search.json <<'JSON'
 {
-  "query_params": {"word": "Mustermann"}
+  "query_params": {
+    "module": "Contacts",
+    "criteria": "(Email:equals:user@example.com)"
+  }
 }
-EOF
+JSON
 mcporter call "$ZOHO_MCP_URL.ZohoCRM_searchRecords" --args "$(< /tmp/zoho_search.json)"
 ```
 
-### Get a single record by ID
-```bash
-cat << 'EOF' > /tmp/zoho_record.json
-{
-  "module": "Contacts",
-  "id": "1234567890123456789"
-}
-EOF
-mcporter call "$ZOHO_MCP_URL.ZohoCRM_getRecord" --args "$(< /tmp/zoho_record.json)"
-```
+Run COQL:
 
-### Run a COQL query (SQL-like)
 ```bash
-cat << 'EOF' > /tmp/zoho_coql.json
+cat > /tmp/zoho_coql.json <<'JSON'
 {
-  "select_query": "SELECT Last_Name, First_Name, Email, Phone FROM Contacts WHERE Email != '' LIMIT 10"
+  "body": {
+    "select_query": "SELECT id, Full_Name, Email FROM Contacts WHERE Email is not null LIMIT 100"
+  }
 }
-EOF
+JSON
 mcporter call "$ZOHO_MCP_URL.ZohoCRM_executeCOQLQuery" --args "$(< /tmp/zoho_coql.json)"
 ```
 
-## Python Scripts
+Use the schema shown by the live MCP server when it differs from these examples. Zoho occasionally changes wrapper argument shapes. For deeply nested arguments, use a temporary JSON file instead of fragile shell quoting.
 
-Ready-to-use scripts for common CRM operations. All scripts require `ZOHO_MCP_URL` to be set.
+## Bundled scripts
 
-The bundled Python scripts call `mcporter` directly through `subprocess.run([...])` and do not invoke a shell. This avoids shell expansion of the credential-bearing `ZOHO_MCP_URL`.
-
-`list_contacts.py` and `list_accounts.py` paginate automatically (they follow `more_records` until the full result set is retrieved) and normalize the different Zoho CRM MCP response shapes, so large modules are never silently truncated.
-
-### Custom fields and filters
-
-Zoho CRM instances often use custom fields (e.g. `Customer_Number`, `Contract_Status`). To find field API names:
+The scripts call `mcporter` without shell expansion and require `ZOHO_MCP_URL`:
 
 ```bash
-cat << 'EOF' > /tmp/zoho_fields.json
-{
-  "query_params": {"module": "Contacts"}
-}
-EOF
-mcporter call "$ZOHO_MCP_URL.ZohoCRM_getFields" --args "$(< /tmp/zoho_fields.json)"
-```
-
-Once you know the field names, query them with COQL:
-
-```bash
-cat << 'EOF' > /tmp/zoho_custom.json
-{
-  "select_query": "SELECT Full_Name, Email, Custom_Field_1 FROM Contacts WHERE Custom_Field_1 != '' LIMIT 50"
-}
-EOF
-mcporter call "$ZOHO_MCP_URL.ZohoCRM_executeCOQLQuery" --args "$(< /tmp/zoho_custom.json)"
-```
-
-### list_contacts.py - Search and list contacts
-
-Search by name, email, company, or list all contacts:
-
-```bash
-# List all contacts (paginated)
-python3 scripts/list_contacts.py
-
-# Search by name
-python3 scripts/list_contacts.py --search "Mustermann"
-
-# Search by email
-python3 scripts/list_contacts.py --email "user@example.com"
-
-# JSON output
 python3 scripts/list_contacts.py --search "Mustermann" --json
-
-# Limit results
-python3 scripts/list_contacts.py --limit 20
+python3 scripts/list_accounts.py --search "Beispiel GmbH" --json
+python3 scripts/search_records.py --module Deals --word "Renewal"
 ```
 
-### list_accounts.py - List companies/accounts
+The list helpers paginate and normalize common Zoho MCP response envelopes.
 
-```bash
-# List all accounts
-python3 scripts/list_accounts.py
+## COQL rules
 
-# Search by name
-python3 scripts/list_accounts.py --search "Pay-Jet"
+- Query one base module at a time.
+- Use API names, not UI labels.
+- Select only required fields.
+- Use single quotes for strings.
+- Use ISO timestamps including timezone offsets.
+- Paginate explicitly and do not assume one page is complete.
+- Inspect the live `executeCOQLQuery` schema before the first call.
 
-# JSON output
-python3 scripts/list_accounts.py --json
+## Attachments
 
-# Limit results
-python3 scripts/list_accounts.py --limit 10
-```
+Zoho MCP upload Actions may report success without transferring local binary data. For verified binary uploads use the separate `zoho-attachment-bridge` skill and read the attachment back after upload.
 
-### search_records.py - Generic module search
+## References
 
-Search across any module (Leads, Deals, Vendors, custom modules):
+- [Action profiles](references/ACTION_PROFILES.md): recommended least-privilege selections for new MCP servers
+- [Complete CRM Actions catalog](references/ZOHO_CRM_MCP_ACTIONS.md): all known CRM Actions and descriptions
 
-```bash
-# Search in Leads
-python3 scripts/search_records.py --module Leads --word "Schmidt"
+Load the profile reference when configuring a connection. Load the full catalog only when the profile lacks a required Action.
 
-# Search in Deals
-python3 scripts/search_records.py --module Deals --word "Enterprise"
+## Safety
 
-# Search with criteria (exact field match)
-python3 scripts/search_records.py --module Contacts --criteria "((Phone:equals:0170123456))"
-```
-
-## mcporter Usage Patterns
-
-### Use temp files for shell-based JSON arguments
-
-When calling `mcporter` directly from a shell, escaping can break inline JSON. Write arguments to a temp file:
-
-```bash
-cat << 'EOF' > /tmp/args.json
-{
-  "query_params": {"word": "Mustermann"}
-}
-EOF
-mcporter call "$ZOHO_MCP_URL.ZohoCRM_searchRecords" --args "$(< /tmp/args.json)"
-```
-
-### Pagination
-
-The `getRecords` action returns up to 200 records per page. Use `page` and `per_page`:
-
-```bash
-cat << 'EOF' > /tmp/args.json
-{
-  "query_params": {"module": "Contacts", "page": 2, "per_page": 200}
-}
-EOF
-mcporter call "$ZOHO_MCP_URL.ZohoCRM_getRecords" --args "$(< /tmp/args.json)"
-```
-
-### Field metadata
-
-Before querying custom fields, inspect the module's field definitions:
-
-```bash
-cat << 'EOF' > /tmp/args.json
-{
-  "query_params": {"module": "Contacts", "include": "allowed_permissions_to_update"}
-}
-EOF
-mcporter call "$ZOHO_MCP_URL.ZohoCRM_getFields" --args "$(< /tmp/args.json)"
-```
-
-## Recommended CRM Actions
-
-For a fully capable CRM agent, enable these actions on your Zoho MCP server at [mcp.zoho.eu](https://mcp.zoho.eu):
-
-### Read-only (safe starting point)
-- `getModules` - List all CRM modules
-- `getFields` - Get field definitions for any module
-- `getRecord` / `getRecords` - Read individual or lists of records
-- `searchRecords` - Search by criteria (email, name, etc.)
-- `executeCOQLQuery` - SQL-like queries across modules
-- `getRecordCount` - Count records per module
-- `getRelatedRecords` - Read linked records (e.g., contacts of an account)
-- `getPickListValues` - Get dropdown options for fields
-
-### Read-write (for agents that create/update data)
-- `createRecords` - Create new records in any module
-- `updateRecord` - Update a single record by ID
-- `upsertRecords` - Insert or update (upsert)
-- `createNotes` - Add notes to records
-- `createEventsRecords` - Create calendar events
-- `createTags` / `postRemoveTags` - Manage tags
-
-### Avoid enabling by default
-- `deleteRecord` / `deleteRecords` - Only enable when specifically needed
-
-## Token Optimization (Large MCP Catalogs)
-
-Connecting large MCP servers (like Zoho CRM or Zoho Desk) to OpenClaw can cost 300k+ input tokens per session if all tool schemas are loaded eagerly up front.
-
-To avoid loading schemas on session start:
-
-### 1. Tool Search (Recommended for OpenClaw)
-Enable OpenClaw's built-in Tool Search in `~/.openclaw/openclaw.json`:
-
-```json5
-{
-  tools: {
-    toolSearch: {
-      mode: "directory" // or "tools"
-    }
-  }
-}
-```
-- **How it works:** Starts sessions with a compact capability directory (<18k chars). Full tool schemas are loaded on demand via `tool_search` / `tool_describe` only when CRM operations are executed.
-- **MCP servers stay enabled:** `mcp.servers.zoho-crm` remains globally enabled without manual per-session toggling.
-
-### 2. Multi-Agent Delegation (Fallback)
-Keep the main chat agent light with `tools.deny: ["bundle-mcp"]` and delegate CRM operations to a dedicated sub-agent that has full tool access.
-
-## COQL Reference
-
-COQL (Zoho's SQL-like query language) differs from standard SQL in several ways:
-
-- No JOINs - query one module at a time
-- Use single quotes for strings: `WHERE Last_Name = 'Smith'`
-- DateTime format: `2026-01-01T00:00:00+01:00`
-- LIMIT format: `LIMIT 20 OFFSET 0`
-- Boolean: `true` / `false` (lowercase)
-
-### Common COQL examples
-```sql
--- All contacts with email
-SELECT Id, Full_Name, Email FROM Contacts WHERE Email != '' LIMIT 100
-
--- Deals from last 3 months
-SELECT Id, Deal_Name, Amount, Stage FROM Deals WHERE Created_Time >= '2026-04-01T00:00:00+01:00'
-
--- Accounts by city
-SELECT Id, Account_Name, Billing_City FROM Accounts WHERE Billing_City = 'Berlin'
-```
-
-## Troubleshooting
-
-### "ZOHO_MCP_URL not set"
-Set the environment variable with your MCP endpoint URL. See "Environment Variable Setup" above.
-
-### "Mandatory query param module is not present"
-Use the temp-file approach with `--args "$(< /tmp/args.json)"` instead of inline JSON.
-
-### "Invalid oauth scope to access this URL"
-The MCP connection token may have expired. Go to [mcp.zoho.eu](https://mcp.zoho.eu), revoke and reconnect the affected app to get a fresh token.
-
-### Field API name vs UI label
-Zoho CRM shows display labels in the UI, but the API uses `api_name` values (e.g., `Account_Name` not "Account Name"). Always check field names with `getFields` before writing scripts or Deluge code.
+- Start with the smallest profile that satisfies the task.
+- Keep all delete Actions disabled by default.
+- Keep functions, workflows, blueprints, layouts, fields, modules, users, profiles, roles, sharing, sandboxes and CRM administration disabled for normal staff.
+- Avoid mass and bulk mutations in normal staff profiles.
+- `sendMail` and other outbound communication Actions require separate authorization and are not part of a default profile.
+- Revoke and reconnect the affected MCP connection after an OAuth scope mismatch. Never switch to another customer's endpoint.
