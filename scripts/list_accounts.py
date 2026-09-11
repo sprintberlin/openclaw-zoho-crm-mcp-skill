@@ -1,31 +1,11 @@
 #!/usr/bin/env python3
-"""
-List Zoho CRM accounts (companies) or search by name.
-Uses executeCOQLQuery via mcporter, with automatic pagination.
+"""List or search Zoho CRM accounts through mcporter."""
 
-Setup:
-  export ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message"
-
-Usage:
-  python3 scripts/list_accounts.py                         # Accounts with a website, as table
-  python3 scripts/list_accounts.py --json                  # Raw JSON output
-  python3 scripts/list_accounts.py --search "Acme"         # Search by company name
-  python3 scripts/list_accounts.py --all                   # All accounts (no default filter)
-  python3 scripts/list_accounts.py --where "Google_Drive_URL != ''"   # Custom WHERE filter
-  python3 scripts/list_accounts.py --fields Account_Name,Website,Google_Drive_URL,Trello_URL
-
-Custom fields / filters:
-  --fields lets you list any Zoho field API names (comma-separated), including
-  org-specific custom fields. --where sets a custom COQL WHERE clause (overrides
-  the default). Field API names appear as-is in the header unless a label exists.
-
-Default fields: Account_Name, Website, Phone, Billing_City, Billing_Country, Industry, id
-"""
-
-import subprocess
+import argparse
 import json
-import sys
 import os
+import subprocess
+import sys
 
 MCP_URL = os.environ.get("ZOHO_MCP_URL", "")
 COQL_TOOL = "ZohoCRM_executeCOQLQuery"
@@ -39,30 +19,66 @@ FIELD_LABELS = {
     "Billing_City": "City",
     "Billing_Country": "Country",
     "Industry": "Industry",
-    "Google_Drive_URL": "Drive URL",
-    "Trello_URL": "Trello URL",
-    "Trello_ID": "Trello ID",
     "id": "CRM ID",
 }
 
 
-def _mcporter_call(tool, args):
-    """Call mcporter directly (no shell) to avoid expanding the credential-bearing URL."""
+def positive_int(value):
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
+def comma_separated_fields(value):
+    fields = [field.strip() for field in value.split(",") if field.strip()]
+    if not fields:
+        raise argparse.ArgumentTypeError("must contain at least one field API name")
+    return fields
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(description="List or search Zoho CRM accounts.")
+    parser.add_argument("--search", metavar="NAME", help="filter accounts by name, case-insensitively")
+    parser.add_argument("--all", action="store_true", help="include accounts without a website")
+    parser.add_argument("--where", metavar="COQL", help="custom COQL WHERE clause")
+    parser.add_argument("--fields", type=comma_separated_fields, help="comma-separated field API names")
+    parser.add_argument("--json", action="store_true", help="print JSON instead of a table")
+    parser.add_argument("--limit", type=positive_int, help="return at most this many accounts")
+    parser.add_argument("--page-size", type=positive_int, default=100, help="COQL page size (default: 100)")
+    parser.add_argument("--timeout", type=positive_int, default=30, help="MCP call timeout in seconds (default: 30)")
+    return parser
+
+
+def _mcporter_call(tool, args, timeout=30):
+    """Call mcporter directly without a shell."""
     if not MCP_URL:
         print("Error: ZOHO_MCP_URL not set. Please set the environment variable.", file=sys.stderr)
-        print("  export ZOHO_MCP_URL='https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message'", file=sys.stderr)
         sys.exit(1)
 
     cmd = ["mcporter", "call", f"{MCP_URL}.{tool}", "--args", json.dumps(args, ensure_ascii=False)]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
     try:
-        return json.loads(result.stdout)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    except FileNotFoundError:
+        return {"error": "mcporter executable not found"}
+    except subprocess.TimeoutExpired:
+        return {"error": "mcporter call timed out"}
+
+    if result.returncode != 0:
+        return {"error": result.stderr.strip() or "mcporter call failed"}
+    try:
+        parsed = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return {"error": result.stdout + result.stderr}
+        return {"error": result.stderr.strip() or "mcporter returned invalid JSON"}
+    if parsed.get("status") in {"error", "failure"}:
+        return {"error": parsed.get("error") or parsed.get("data") or parsed.get("message") or "Zoho CRM request failed"}
+    return parsed
 
 
 def normalize_crm_result(result):
-    """Return a consistent (data, info) tuple across CRM MCP response variants."""
     if "error" in result:
         return None, None
 
@@ -79,23 +95,34 @@ def normalize_crm_result(result):
     return [], result.get("info", {})
 
 
-def query_accounts_page(fields, where_clause, offset=0, limit=100):
-    """Fetch one accounts page using executeCOQLQuery."""
+def query_accounts_page(fields, where_clause, offset=0, limit=100, timeout=30):
     fields_str = ", ".join(fields)
     query = f"SELECT {fields_str} FROM Accounts"
     if where_clause:
         query += f" WHERE {where_clause}"
     query += f" ORDER BY Account_Name LIMIT {offset}, {limit}"
-    return _mcporter_call(COQL_TOOL, {"body": {"select_query": query}})
+    return _mcporter_call(COQL_TOOL, {"body": {"select_query": query}}, timeout=timeout)
 
 
-def query_all_accounts(fields, where_clause, per_page=100):
-    """Fetch all accounts using paginated COQL queries."""
+def query_all_accounts(fields, where_clause, per_page=100, max_records=None, timeout=30):
     all_data = []
     offset = 0
 
     while True:
-        result = query_accounts_page(fields, where_clause, offset=offset, limit=per_page)
+        request_limit = per_page
+        if max_records is not None:
+            remaining = max_records - len(all_data)
+            if remaining <= 0:
+                break
+            request_limit = min(request_limit, remaining)
+
+        result = query_accounts_page(
+            fields,
+            where_clause,
+            offset=offset,
+            limit=request_limit,
+            timeout=timeout,
+        )
         if "error" in result:
             return result
 
@@ -104,11 +131,15 @@ def query_all_accounts(fields, where_clause, per_page=100):
             return {"error": "CRM response could not be normalized"}
 
         all_data.extend(data)
+        if max_records is not None and len(all_data) >= max_records:
+            break
         if not info.get("more_records") or not data:
             break
 
         offset += len(data)
 
+    if max_records is not None:
+        all_data = all_data[:max_records]
     return {"data": all_data, "info": {"count": len(all_data), "more_records": False}}
 
 
@@ -132,9 +163,8 @@ def print_table(data, fields):
         max_val_len = max((len(extract_field(row, field)) for row in data), default=0)
         col_widths[field] = max(len(label), min(max_val_len, 50))
 
-    header_parts = [FIELD_LABELS.get(f, f).ljust(col_widths[f]) for f in fields]
-    print(" | ".join(header_parts))
-    print("-+-".join("-" * col_widths[f] for f in fields))
+    print(" | ".join(FIELD_LABELS.get(field, field).ljust(col_widths[field]) for field in fields))
+    print("-+-".join("-" * col_widths[field] for field in fields))
 
     for row in data:
         parts = []
@@ -148,53 +178,46 @@ def print_table(data, fields):
     print(f"\n{len(data)} record(s)")
 
 
-def main():
-    args = sys.argv[1:]
-    json_mode = "--json" in args
-    show_all = "--all" in args
-    search_term = None
-    custom_fields = None
-    custom_where = None
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    fields = args.fields or DEFAULT_FIELDS
 
-    for i, arg in enumerate(args):
-        if arg == "--search" and i + 1 < len(args):
-            search_term = args[i + 1]
-        elif arg == "--fields" and i + 1 < len(args):
-            custom_fields = [f.strip() for f in args[i + 1].split(",") if f.strip()]
-        elif arg == "--where" and i + 1 < len(args):
-            custom_where = args[i + 1]
-
-    fields = custom_fields if custom_fields else DEFAULT_FIELDS
-
-    # Build WHERE clause. COQL has no LIKE/starts_with, so --search fetches a broad
-    # set and filters client-side.
-    if custom_where is not None:
-        where = custom_where
-    elif search_term or show_all:
+    if args.where is not None:
+        where = args.where
+    elif args.search or args.all:
         where = "Account_Name != ''"
     else:
         where = "Website != ''"
 
-    result = query_all_accounts(fields, where)
-
+    # Account search currently filters client-side; do not apply a fetch limit before filtering.
+    query_limit = None if args.search else args.limit
+    result = query_all_accounts(
+        fields,
+        where,
+        per_page=args.page_size,
+        max_records=query_limit,
+        timeout=args.timeout,
+    )
     if "error" in result:
         print(f"Error: {result['error']}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     data, info = normalize_crm_result(result)
-
-    if search_term:
-        search_lower = search_term.lower()
+    if args.search:
+        search_lower = args.search.lower()
         data = [row for row in data if search_lower in (row.get("Account_Name", "") or "").lower()]
+        if args.limit is not None:
+            data = data[: args.limit]
 
-    if json_mode:
+    if args.json:
         print(json.dumps(data, indent=2, ensure_ascii=False))
     else:
         print_table(data, fields)
 
     if info.get("more_records"):
-        print(f"\nMore records available (showing {info.get('count', '?')}).")
+        print(f"\nMore records available (showing {len(data)}).")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -35,10 +35,10 @@ Or set it per session:
 ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message" python3 scripts/list_contacts.py
 ```
 
-To verify that it is set:
+To verify that it is set without printing the credential:
 
 ```bash
-echo $ZOHO_MCP_URL
+if [ -n "$ZOHO_MCP_URL" ]; then echo "ZOHO_MCP_URL is set"; else echo "ZOHO_MCP_URL is not set"; fi
 ```
 
 Treat `ZOHO_MCP_URL` like a password. It contains CRM access credentials.
@@ -145,15 +145,14 @@ python3 scripts/list_accounts.py --all
 # JSON output
 python3 scripts/list_accounts.py --json
 
-# Custom fields and a custom WHERE filter (e.g. org-specific fields)
+# Custom fields and a custom WHERE filter (use generic custom field placeholder)
 python3 scripts/list_accounts.py \
-  --where "Google_Drive_URL != ''" \
-  --fields Account_Name,Website,Google_Drive_URL,Trello_URL,Trello_ID
+  --where "Billing_City = 'Berlin'" \
+  --fields Account_Name,Website,Phone,Billing_City
 ```
 
 Both `list_contacts.py` and `list_accounts.py` paginate automatically and accept
-`--fields F1,F2,...` to request any Zoho field API names, including org-specific
-custom fields.
+`--fields F1,F2,...` to request any Zoho field API names, including custom fields (e.g. `<CUSTOM_FIELD_API_NAME>`).
 
 ### `search_records.py`
 
@@ -241,6 +240,30 @@ mcporter list "$ZOHO_MCP_URL"
 
 The profile and catalog use the Action names shown in the Zoho MCP setup UI.
 Runtime tool names normally add the `ZohoCRM_` prefix.
+
+## Token Optimization (Large MCP Catalogs)
+
+Connecting large MCP servers (like Zoho CRM or Zoho Desk) to OpenClaw can cost 300k+ input tokens per session if all tool schemas are loaded eagerly up front.
+
+To avoid loading schemas on session start:
+
+### 1. Tool Search (Recommended for OpenClaw)
+Enable OpenClaw's built-in Tool Search in `~/.openclaw/openclaw.json`:
+
+```json5
+{
+  tools: {
+    toolSearch: {
+      mode: "directory" // or "tools"
+    }
+  }
+}
+```
+- **How it works:** Starts sessions with a compact capability directory (<18k chars). Full tool schemas are loaded on demand via `tool_search` / `tool_describe` only when CRM operations are executed.
+- **MCP servers stay enabled:** `mcp.servers.zoho-crm` remains globally enabled without manual per-session toggling.
+
+### 2. Multi-Agent Delegation (Fallback)
+Keep the main chat agent light with `tools.deny: ["bundle-mcp"]` and delegate CRM operations to a dedicated sub-agent that has full tool access.
 
 ## COQL Reference
 

@@ -1,37 +1,17 @@
 #!/usr/bin/env python3
-"""
-List Zoho CRM contacts or search by name.
-Uses ZohoCRM_searchRecords (name search) and executeCOQLQuery (full list) via mcporter.
+"""List or search Zoho CRM contacts through mcporter."""
 
-Setup:
-  export ZOHO_MCP_URL="https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message"
-
-Usage:
-  python3 scripts/list_contacts.py                          # All contacts as table
-  python3 scripts/list_contacts.py --json                   # Raw JSON output
-  python3 scripts/list_contacts.py --search "Smith"         # Search by last name
-  python3 scripts/list_contacts.py --search "Smith" --full  # Full record data
-  python3 scripts/list_contacts.py --fields First_Name,Last_Name,Email,Designation
-
-Custom fields:
-  --fields lets you list any Zoho field API names (comma-separated), including
-  org-specific custom fields. Field API names are shown as-is in the table header
-  unless a friendly label exists.
-
-Default fields (table): Full_Name, Email, Mobile, Phone, Account_Name, Owner
-"""
-
-import subprocess
+import argparse
 import json
-import sys
 import os
+import subprocess
+import sys
 
 MCP_URL = os.environ.get("ZOHO_MCP_URL", "")
 TOOL = "ZohoCRM_searchRecords"
 COQL_TOOL = "ZohoCRM_executeCOQLQuery"
 
 DEFAULT_FIELDS = ["Full_Name", "Email", "Mobile", "Phone", "Account_Name", "Owner"]
-# Extra fields always requested via COQL so table rendering has what it needs.
 COQL_BASE_FIELDS = ["First_Name", "Last_Name", "id"]
 
 FIELD_LABELS = {
@@ -48,28 +28,62 @@ FIELD_LABELS = {
 }
 
 
-def _mcporter_call(tool, args):
-    """Call mcporter directly (no shell) to avoid expanding the credential-bearing URL."""
+def positive_int(value):
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
+def comma_separated_fields(value):
+    fields = [field.strip() for field in value.split(",") if field.strip()]
+    if not fields:
+        raise argparse.ArgumentTypeError("must contain at least one field API name")
+    return fields
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(description="List or search Zoho CRM contacts.")
+    parser.add_argument("--search", metavar="LAST_NAME", help="search by exact last name")
+    parser.add_argument("--fields", type=comma_separated_fields, help="comma-separated field API names")
+    parser.add_argument("--json", action="store_true", help="print JSON instead of a table")
+    parser.add_argument("--full", action="store_true", help="with --json, print complete search records")
+    parser.add_argument("--limit", type=positive_int, help="return at most this many contacts")
+    parser.add_argument("--page-size", type=positive_int, default=100, help="COQL page size (default: 100)")
+    parser.add_argument("--timeout", type=positive_int, default=30, help="MCP call timeout in seconds (default: 30)")
+    return parser
+
+
+def _mcporter_call(tool, args, timeout=30):
+    """Call mcporter directly without a shell."""
     if not MCP_URL:
         print("Error: ZOHO_MCP_URL not set. Please set the environment variable.", file=sys.stderr)
-        print("  export ZOHO_MCP_URL='https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message'", file=sys.stderr)
         sys.exit(1)
 
     cmd = ["mcporter", "call", f"{MCP_URL}.{tool}", "--args", json.dumps(args, ensure_ascii=False)]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
     try:
-        return json.loads(result.stdout)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    except FileNotFoundError:
+        return {"error": "mcporter executable not found"}
+    except subprocess.TimeoutExpired:
+        return {"error": "mcporter call timed out"}
+
+    if result.returncode != 0:
+        return {"error": result.stderr.strip() or "mcporter call failed"}
+    try:
+        parsed = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return {"error": result.stdout + result.stderr}
+        return {"error": result.stderr.strip() or "mcporter returned invalid JSON"}
+    if parsed.get("status") in {"error", "failure"}:
+        return {"error": parsed.get("error") or parsed.get("data") or parsed.get("message") or "Zoho CRM request failed"}
+    return parsed
 
 
 def normalize_crm_result(result):
-    """Return a consistent (data, info) tuple across CRM MCP response variants.
-
-    The Zoho CRM MCP may return records either directly under "data" as a list,
-    or nested as {"data": {"data": [...], "info": {...}}}, or wrapped with a
-    "message" (e.g. no records). This normalizes all of them.
-    """
+    """Return a consistent (data, info) tuple across CRM MCP response variants."""
     if "error" in result:
         return None, None
 
@@ -86,23 +100,28 @@ def normalize_crm_result(result):
     return [], result.get("info", {})
 
 
-def query_contacts_page(fields, offset=0, limit=100):
-    """Fetch one contacts page using executeCOQLQuery."""
+def query_contacts_page(fields, offset=0, limit=100, timeout=30):
     fields_str = ", ".join(fields)
     query = (
         f"SELECT {fields_str} FROM Contacts WHERE Last_Name != '' "
         f"ORDER BY Last_Name LIMIT {offset}, {limit}"
     )
-    return _mcporter_call(COQL_TOOL, {"body": {"select_query": query}})
+    return _mcporter_call(COQL_TOOL, {"body": {"select_query": query}}, timeout=timeout)
 
 
-def query_all_contacts(fields, per_page=100):
-    """Fetch all contacts using paginated COQL queries."""
+def query_all_contacts(fields, per_page=100, max_records=None, timeout=30):
     all_data = []
     offset = 0
 
     while True:
-        result = query_contacts_page(fields, offset=offset, limit=per_page)
+        request_limit = per_page
+        if max_records is not None:
+            remaining = max_records - len(all_data)
+            if remaining <= 0:
+                break
+            request_limit = min(request_limit, remaining)
+
+        result = query_contacts_page(fields, offset=offset, limit=request_limit, timeout=timeout)
         if "error" in result:
             return result
 
@@ -111,26 +130,28 @@ def query_all_contacts(fields, per_page=100):
             return {"error": "CRM response could not be normalized"}
 
         all_data.extend(data)
+        if max_records is not None and len(all_data) >= max_records:
+            break
         if not info.get("more_records") or not data:
             break
 
         offset += len(data)
 
+    if max_records is not None:
+        all_data = all_data[:max_records]
     return {"data": all_data, "info": {"count": len(all_data), "more_records": False}}
 
 
-def search_contacts_by_name(last_name):
-    """Search contacts by last name using searchRecords."""
+def search_contacts_by_name(last_name, limit=None, page_size=100, timeout=30):
     criteria = f"(Last_Name:equals:{last_name})"
     args = {
         "path_variables": {"module": "Contacts"},
-        "query_params": {"criteria": criteria, "page": 1, "per_page": 200},
+        "query_params": {"criteria": criteria, "page": 1, "per_page": min(limit or page_size, 200)},
     }
-    return _mcporter_call(TOOL, args)
+    return _mcporter_call(TOOL, args, timeout=timeout)
 
 
 def extract_table_field(contact, field):
-    """Extract a field from contact data, handling nested objects (e.g. Account_Name, Owner)."""
     val = contact.get(field, "")
     if not val:
         return "-"
@@ -150,9 +171,8 @@ def print_table(data, fields):
         max_val_len = max((len(extract_table_field(row, field)) for row in data), default=0)
         col_widths[field] = max(len(label), min(max_val_len, 50))
 
-    header_parts = [FIELD_LABELS.get(f, f).ljust(col_widths[f]) for f in fields]
-    print(" | ".join(header_parts))
-    print("-+-".join("-" * col_widths[f] for f in fields))
+    print(" | ".join(FIELD_LABELS.get(field, field).ljust(col_widths[field]) for field in fields))
+    print("-+-".join("-" * col_widths[field] for field in fields))
 
     for row in data:
         parts = []
@@ -166,49 +186,44 @@ def print_table(data, fields):
     print(f"\n{len(data)} contact(s)")
 
 
-def main():
-    args = sys.argv[1:]
-    json_mode = "--json" in args
-    full_mode = "--full" in args
-    search_term = None
-    custom_fields = None
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    table_fields = args.fields or DEFAULT_FIELDS
 
-    for i, arg in enumerate(args):
-        if arg == "--search" and i + 1 < len(args):
-            search_term = args[i + 1]
-        elif arg == "--fields" and i + 1 < len(args):
-            custom_fields = [f.strip() for f in args[i + 1].split(",") if f.strip()]
-
-    table_fields = custom_fields if custom_fields else DEFAULT_FIELDS
-
-    if search_term:
-        # searchRecords returns full records; table just picks the requested fields.
-        result = search_contacts_by_name(search_term)
+    if args.search:
+        result = search_contacts_by_name(args.search, args.limit, args.page_size, args.timeout)
         data, info = normalize_crm_result(result)
         if data is None:
             print(f"Error: {result.get('error')}", file=sys.stderr)
-            sys.exit(1)
+            return 1
+        if args.limit is not None:
+            data = data[: args.limit]
     else:
-        # COQL needs an explicit field list; merge requested + base fields (dedup, keep order).
         coql_fields = list(dict.fromkeys(table_fields + COQL_BASE_FIELDS))
-        result = query_all_contacts(coql_fields)
+        result = query_all_contacts(
+            coql_fields,
+            per_page=args.page_size,
+            max_records=args.limit,
+            timeout=args.timeout,
+        )
         if "error" in result:
             print(f"Error: {result['error']}", file=sys.stderr)
-            sys.exit(1)
+            return 1
         data, info = normalize_crm_result(result)
 
-    if json_mode:
-        if full_mode:
+    if args.json:
+        if args.full:
             print(json.dumps(data, indent=2, ensure_ascii=False))
         else:
-            simplified = [{f: row.get(f) for f in table_fields} for row in data]
+            simplified = [{field: row.get(field) for field in table_fields} for row in data]
             print(json.dumps(simplified, indent=2, ensure_ascii=False))
     else:
         print_table(data, table_fields)
 
     if info.get("more_records"):
-        print(f"\nMore records available (showing {info.get('count', '?')}).")
+        print(f"\nMore records available (showing {len(data)}).")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

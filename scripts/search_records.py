@@ -15,16 +15,89 @@ Usage:
   python3 scripts/search_records.py Contacts --coql "Email != ''"
 """
 
-import subprocess
+import argparse
 import json
-import sys
 import os
+import subprocess
+import sys
 
 MCP_URL = os.environ.get("ZOHO_MCP_URL", "")
 
 
-def mcporter_call(tool, args):
-    if not MCP_URL:
+def positive_int(value):
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
+def comma_separated_fields(value):
+    fields = [field.strip() for field in value.split(",") if field.strip()]
+    if not fields:
+        raise argparse.ArgumentTypeError("must contain at least one field API name")
+    return fields
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Search records in any Zoho CRM module via mcporter."
+    )
+    parser.add_argument(
+        "module",
+        help="CRM module name (e.g. Contacts, Accounts, Deals, Leads, Products)",
+    )
+    parser.add_argument(
+        "query",
+        nargs="?",
+        default=None,
+        help="search term (positional alternative to --search)",
+    )
+    parser.add_argument(
+        "--search",
+        metavar="TERM",
+        help="search term for module name/last name field",
+    )
+    parser.add_argument(
+        "--coql",
+        metavar="WHERE",
+        help="custom COQL WHERE clause",
+    )
+    parser.add_argument(
+        "--fields",
+        type=comma_separated_fields,
+        help="comma-separated field API names",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="print JSON instead of a table",
+    )
+    parser.add_argument(
+        "--limit",
+        type=positive_int,
+        help="maximum number of records to return and query limit",
+    )
+    parser.add_argument(
+        "--page-size",
+        type=positive_int,
+        default=100,
+        help="request page size (default: 100)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=positive_int,
+        default=30,
+        help="MCP call timeout in seconds (default: 30)",
+    )
+    return parser
+
+
+def mcporter_call(tool, args, timeout=30):
+    mcp_url = os.environ.get("ZOHO_MCP_URL") or MCP_URL
+    if not mcp_url:
         print("Error: ZOHO_MCP_URL not set. Please set the environment variable.", file=sys.stderr)
         print("  export ZOHO_MCP_URL='https://your-org-zoho-crm-xxxxx.zohomcp.eu/mcp/YOUR_TOKEN/message'", file=sys.stderr)
         sys.exit(1)
@@ -32,11 +105,19 @@ def mcporter_call(tool, args):
     cmd = [
         "mcporter",
         "call",
-        f"{MCP_URL}.{tool}",
+        f"{mcp_url}.{tool}",
         "--args",
         json.dumps(args, ensure_ascii=False),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    except FileNotFoundError:
+        return {"error": "mcporter executable not found"}
+    except subprocess.TimeoutExpired:
+        return {"error": "mcporter call timed out"}
+
+    if result.returncode != 0:
+        return {"error": result.stderr.strip() or "mcporter call failed"}
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError:
@@ -50,6 +131,8 @@ def normalize_crm_result(result):
     {"data": {"data": [...], "info": {...}}}, or wrapped with a "message"
     (e.g. no records). This normalizes all of them to a plain list.
     """
+    if not isinstance(result, dict):
+        return []
     payload = result.get("data", [])
     if isinstance(payload, dict):
         if "data" in payload:
@@ -61,7 +144,7 @@ def normalize_crm_result(result):
     return []
 
 
-def search_module(module, search_term):
+def search_module(module, search_term, limit=None, page_size=100, timeout=30):
     """Search a module by name field."""
     name_field_map = {
         "Contacts": "Last_Name",
@@ -72,11 +155,13 @@ def search_module(module, search_term):
     }
     name_field = name_field_map.get(module, "Name")
     criteria = f"({name_field}:equals:{search_term})"
+    query_params = {"criteria": criteria}
+    query_params["per_page"] = min(limit or page_size, 200)
     args = {
         "path_variables": {"module": module},
-        "query_params": {"criteria": criteria},
+        "query_params": query_params,
     }
-    return mcporter_call("ZohoCRM_searchRecords", args)
+    return mcporter_call("ZohoCRM_searchRecords", args, timeout=timeout)
 
 
 def default_fields_for_module(module):
@@ -90,57 +175,56 @@ def default_fields_for_module(module):
     }.get(module, ["id"])
 
 
-def coql_query(module, fields, where_clause, limit=100):
+def coql_query(module, fields, where_clause, limit=100, timeout=30):
     """Execute a COQL query on a module."""
     query = f"SELECT {', '.join(fields)} FROM {module}"
     if where_clause:
         query += f" WHERE {where_clause}"
     query += f" LIMIT {limit}"
-    return mcporter_call("ZohoCRM_executeCOQLQuery", {"body": {"select_query": query}})
+    return mcporter_call(
+        "ZohoCRM_executeCOQLQuery",
+        {"body": {"select_query": query}},
+        timeout=timeout,
+    )
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 search_records.py <Module> [--search <term>] [--coql <WHERE>] [--json]")
-        print("Modules: Contacts, Accounts, Deals, Leads, Products, ...")
-        sys.exit(1)
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
-    module = sys.argv[1]
-    args = sys.argv[2:]
-    json_mode = "--json" in args
-    search_term = None
-    coql_where = None
-    fields = default_fields_for_module(module)
+    module = args.module
+    search_term = args.search or args.query
+    coql_where = args.coql
+    fields = args.fields or default_fields_for_module(module)
+    coql_limit = args.limit or args.page_size
 
-    for i, arg in enumerate(args):
-        if arg == "--search" and i + 1 < len(args):
-            search_term = args[i + 1]
-        elif arg == "--coql" and i + 1 < len(args):
-            coql_where = args[i + 1]
-        elif arg == "--fields" and i + 1 < len(args):
-            fields = [f.strip() for f in args[i + 1].split(",") if f.strip()]
-        elif not arg.startswith("-") and (i == 0 or args[i - 1] not in {"--search", "--coql", "--fields"}):
-            search_term = arg
-
-    if coql_where:
-        result = coql_query(module, fields, coql_where)
+    if coql_where is not None:
+        result = coql_query(module, fields, coql_where, limit=coql_limit, timeout=args.timeout)
     elif search_term:
-        result = search_module(module, search_term)
+        result = search_module(
+            module,
+            search_term,
+            limit=args.limit,
+            page_size=args.page_size,
+            timeout=args.timeout,
+        )
     else:
-        result = coql_query(module, fields, "")
+        result = coql_query(module, fields, "", limit=coql_limit, timeout=args.timeout)
 
-    if "error" in result or result.get("status") == "failure":
-        print(f"Error: {result.get('error') or result.get('data')}", file=sys.stderr)
-        sys.exit(1)
+    if "error" in result or result.get("status") in {"error", "failure"}:
+        print(f"Error: {result.get('error') or result.get('data') or result.get('message')}", file=sys.stderr)
+        return 1
 
     data = normalize_crm_result(result)
+    if args.limit is not None:
+        data = data[: args.limit]
 
-    if json_mode:
+    if args.json:
         print(json.dumps(data, indent=2, ensure_ascii=False))
     else:
         if not data:
             print(f"No {module} records found.")
-            return
+            return 0
         keys = list(data[0].keys())[:8]
         col_widths = {k: max(len(k), min(max(len(str(row.get(k, ""))) for row in data), 40)) for k in keys}
 
@@ -155,7 +239,8 @@ def main():
                 vals.append(v.ljust(col_widths[k]))
             print(" | ".join(vals))
         print(f"\n{len(data)} record(s)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
