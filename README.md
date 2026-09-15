@@ -215,7 +215,7 @@ Zoho CRM exposes roughly 1,300 MCP Actions. Enabling all of them gives a normal
 agent unnecessary access to destructive operations, automation, functions and
 CRM administration.
 
-This repository is the canonical home for both documents:
+This repository is the canonical home for these documents:
 
 - [`references/ACTION_PROFILES.md`](references/ACTION_PROFILES.md) contains
   copy-ready least-privilege profiles for a read-only analyst, a normal CRM
@@ -223,6 +223,9 @@ This repository is the canonical home for both documents:
   unbundled developer/administrator role.
 - [`references/ZOHO_CRM_MCP_ACTIONS.md`](references/ZOHO_CRM_MCP_ACTIONS.md)
   contains the complete catalog of 1,291 known CRM Actions and descriptions.
+- [`references/FUNCTIONS_API.md`](references/FUNCTIONS_API.md) documents how to
+  create and update Deluge functions through MCP, including naming rules,
+  the metadata wrapper, and Button-category functions.
 
 For a normal CRM employee, start with the **CRM Employee, read/write without
 delete** profile. It includes record reads, searches, `executeCOQLQuery`, record
@@ -311,6 +314,7 @@ Zoho CRM shows display labels in the UI, but the API uses `api_name` values, for
 - `SKILL.md`: Agent Skill instructions.
 - `references/ACTION_PROFILES.md`: Least-privilege Action profiles for new CRM MCP connections.
 - `references/ZOHO_CRM_MCP_ACTIONS.md`: Complete catalog of 1,291 known CRM Actions.
+- `references/FUNCTIONS_API.md`: Create, update, and verify Deluge functions through MCP.
 - `skill-card.md`: ClawHub release card metadata.
 - `scripts/list_contacts.py`: List or search Zoho CRM contacts.
 - `scripts/list_accounts.py`: List or search Zoho CRM accounts.

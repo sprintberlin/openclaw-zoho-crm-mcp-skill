@@ -133,8 +133,9 @@ Zoho MCP upload Actions may report success without transferring local binary dat
 
 - [Action profiles](references/ACTION_PROFILES.md): recommended least-privilege selections for new MCP servers
 - [Complete CRM Actions catalog](references/ZOHO_CRM_MCP_ACTIONS.md): all known CRM Actions and descriptions
+- [Functions API](references/FUNCTIONS_API.md): create, update, and verify Deluge functions through MCP (`createFunctions`, `updateFunction`, naming rules, Button category)
 
-Load the profile reference when configuring a connection. Load the full catalog only when the profile lacks a required Action.
+Load the profile reference when configuring a connection. Load the full catalog only when the profile lacks a required Action. Load the Functions API reference before creating or updating CRM functions.
 
 ## Troubleshooting and safety
 
