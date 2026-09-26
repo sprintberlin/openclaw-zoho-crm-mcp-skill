@@ -144,8 +144,8 @@ Zoho MCP upload Actions may report success without transferring local binary dat
 
 Contributions are explicitly welcome from humans and agents. A CRM task is complete only after serving the user and filing or linking every reproducible skill defect found.
 
-- **Issue**: For schema mismatches, broken helpers or workflows, wrong COQL or field guidance, or missing profile Actions. Run `python3 scripts/report_skill_issue.py --kind KIND --title TITLE --expected EXPECTED --actual ACTUAL`.
-- **Pull request**: Preferred when you can fix and verify the defect.
+- **Issue**: For schema mismatches, broken helpers or workflows, wrong COQL or field guidance, or missing profile Actions. File via GitHub CLI: `gh issue create --repo sprintberlin/openclaw-zoho-crm-mcp-skill --title "bug: ..." --body "..."`.
+- **Pull request**: Preferred when you can fix and verify the defect. Follow the standard branch, test, and PR workflow.
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution rules and `gh` workflows.
 
 Do not file skill issues for endpoint/auth/profile setup, rate limits, transient service failures, timeouts, organization-specific fields, or unsupported CRM operations. Never include MCP URLs, record content, contacts, or customer data.
@@ -156,7 +156,6 @@ Do not file skill issues for endpoint/auth/profile setup, rate limits, transient
 - [Complete CRM Actions catalog](references/ZOHO_CRM_MCP_ACTIONS.md): all known CRM Actions and descriptions
 - [Functions API](references/FUNCTIONS_API.md): create, update, and verify Deluge functions through MCP (`createFunctions`, `updateFunction`, naming rules, Button category)
 - [Multi-account profiles](references/MULTI_ACCOUNT.md): portable endpoint selection for one or many Zoho accounts
-- [`scripts/report_skill_issue.py`](scripts/report_skill_issue.py): file or link a GitHub issue when this skill is wrong
 - [Contributing guide](CONTRIBUTING.md): issue and pull request workflows for humans and agents
 
 Load the profile reference when configuring a connection. Load the full catalog only when the profile lacks a required Action. Load the Functions API reference before creating or updating CRM functions.

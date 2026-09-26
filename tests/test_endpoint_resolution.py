@@ -199,7 +199,7 @@ class EndpointResolutionTests(unittest.TestCase):
                                 "services": {
                                     "books": {
                                         "url": "https://books.example.org/mcp/token/message",
-                                        "organization_id": "20098819057",
+                                        "organization_id": "123456789",
                                     }
                                 }
                             }
@@ -216,7 +216,7 @@ class EndpointResolutionTests(unittest.TestCase):
                 include_organization_id=True,
             )
             org_id = resolve_organization_id(args, service="books", required=True, environ={})
-            self.assertEqual(org_id, "20098819057")
+            self.assertEqual(org_id, "123456789")
 
     def test_required_organization_id_missing(self):
         args = parse()

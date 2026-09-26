@@ -6,8 +6,27 @@ Contributions from humans and agents are explicitly welcome. Issues and pull req
 
 Use an issue for a reproducible defect, incomplete documentation, a live-schema mismatch, a broken helper or workflow, incorrect COQL or field guidance, or a missing profile Action.
 
-1. Search open issues and link an existing match.
-2. Otherwise run `scripts/report_skill_issue.py`; use `--help` for its interface.
+1. Search open issues with GitHub CLI and link an existing match:
+   ```bash
+   gh issue list --repo sprintberlin/openclaw-zoho-crm-mcp-skill --state open
+   ```
+2. If none exists, write a sanitized body file and create the issue with `gh`:
+   ```bash
+   cat > /tmp/zoho-crm-issue.md <<'EOF'
+   ### What happened
+   ...
+
+   ### Expected behavior
+   ...
+
+   ### Reproduction / Environment
+   ...
+   EOF
+   gh issue create \
+     --repo sprintberlin/openclaw-zoho-crm-mcp-skill \
+     --title "bug(schema): <short description>" \
+     --body-file /tmp/zoho-crm-issue.md
+   ```
 3. State expected and actual behavior plus minimal reproduction details.
 4. Return the issue URL.
 
@@ -21,7 +40,19 @@ Use a pull request for a verified improvement or fix.
 2. Add or update tests for behavior changes.
 3. Run `python3 -m unittest discover -s tests`.
 4. Run the skill validator.
-5. Open the pull request with `gh pr create` and link its issue when present.
+5. Write a sanitized PR body file, then open the pull request with `gh pr create` and link its issue when present:
+   ```bash
+   cat > /tmp/zoho-crm-pr.md <<'EOF'
+   Resolves #<issue-number>
+
+   ### Summary
+   ...
+   EOF
+   gh pr create \
+     --repo sprintberlin/openclaw-zoho-crm-mcp-skill \
+     --title "feat(profiles): <short description>" \
+     --body-file /tmp/zoho-crm-pr.md
+   ```
 
 ## Requirements
 
