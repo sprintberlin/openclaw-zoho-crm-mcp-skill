@@ -8,7 +8,8 @@ Names below match the Zoho MCP setup UI and the complete catalog in `ZOHO_CRM_MC
 
 1. **CRM Analyst, read-only**: searches, reports, metadata, related records and COQL.
 2. **CRM Employee, read/write without delete**: recommended operational profile. Includes COQL, record creation and updates, notes, tags, CRM email, lead conversion, owner changes and Events. No delete, functions, workflows or CRM administration.
-3. **CRM Developer or Administrator**: no blanket profile. Add workflow, function, layout, field, module and security Actions individually for a defined task.
+3. **CRM Developer**: full structural development. CRM Employee plus functions, workflows, blueprints, email templates, fields, layouts, modules and custom buttons/links. Machine-readable list: [profiles/crm-developer.json](profiles/crm-developer.json). No deletes, no user/profile/role/sharing/sandbox administration, no mass mutations.
+4. **CRM Administrator**: no blanket profile. Add security and organization Actions (users, profiles, roles, sharing, sandboxes, backups) individually for a defined task and remove them when done.
 
 ## CRM Analyst, read-only
 
@@ -158,9 +159,62 @@ createEventsRecords
 updateEventsRecord
 ```
 
-## CRM Developer or Administrator
+## CRM Developer
 
-Do not create a reusable blanket profile. Add high-impact Actions individually for the current task and remove them again when the task is complete. This includes functions, workflows, blueprints, layouts, fields, modules, picklist definitions, profiles, roles, users, sharing, territories, portals, sandboxes, backups and other CRM configuration.
+Fixed, reusable profile for agents and developers that build CRM structure: everything in **CRM Employee, read/write without delete**, plus:
+
+```text
+# Functions (custom Deluge code)
+createFunctions getFunctions getFunction getFunctionCode updateFunction publishFunction
+postAutomationFunctions putAutomationFunctions getAutomationFunctions getAllAutomationFunctions getAutomationFunctionFailures
+
+# Workflows and connected workflows
+getWorkflowConfigurations getWorkflowRules getWorkflowRuleById getWorkflowRulesCount getWorkflowRulesActionsCount getWorkflowRuleUsage
+postWorkflowRule updateWorkflowRule updateWorkflowRuleById reorderWorkflowRules
+getWorkflowTasks createWorkflowTasks updateWorkflowTaskById
+getFieldUpdates getFieldUpdateById createFieldUpdates updateFieldUpdateById
+getConnectedWorkflows getConnectedWorkflowById getConnectedWorkflowRules getConnectedWorkflowRuleById getConnectedWorkflowConfigurations getConnectedWorkflowActionsCount
+postConnectedWorkflows createConnectedWorkflowRule updateConnectedWorkflow updateConnectedWorkflowRule activateConnectedWorkflow deactivateConnectedWorkflow
+getEmailNotifications getEmailNotificationsById postEmailNotifications updateEmailNotification
+getWebhooks getWebhookById getWebhookFailures getWebhookUsageReports createWebhooks updateWebhookById updateWebhooks
+
+# Blueprints
+getBlueprint getBlueprintId getBlueprintStates getBlueprintStateById getBlueprintTransitions getBlueprintTransitionById getBlueprintRecordsCount
+getBlueprintProcessConfigurationMeta getBlueprintUsageConfigurations
+postBlueprint putBlueprint putBlueprintId cloneBlueprint reorderBlueprints
+createBlueprintStates updateBlueprintStateById updateBlueprintStates
+createBlueprintTransitions updateBlueprintTransitionById updateBlueprintTransitions
+activateBlueprint deactivateBlueprint getRecordBlueprintTransition putRecordBlueprintTransition
+
+# Email templates (complete)
+createEmailTemplate createEmailTemplateFolders generateEmailTemplateContent generateEmailTemplatePdf
+getCountEmailTemplates getEmailTemplateAssociations getEmailTemplateFile getEmailTemplateAnalytics
+getEmailTemplateFolderById getEmailTemplateFolders getEmailTemplateVersions
+markEmailTemplateAsFavorite moveEmailTemplateToFolder updateEmailTemplateById
+updateEmailTemplateFolder updateEmailTemplateFolders
+
+# Fields, layouts, modules, picklists
+createFields updateField putFieldsWithId
+getLayouts getLayoutById updateLayout getLayoutRules getLayoutRulesById postLayoutRules patchLayoutRules activateLayout layoutDeactivate
+createModules updateModules updateModuleByApiName
+getPickListValuesAssociations postReplacePickListValues replacePicklistValues
+createGlobalPicklist updateGlobalPicklistById getBulkGlobalPicklists getSingleGlobalPicklists getGlobalPickListFieldAssociations
+createValidationRule getValidationRules getValidationRule updateValidationRule
+
+# Custom buttons and links
+createCustomButton getCustomButtons getCustomButtonById getCustomButtonCount getCustomButtonAssociations updateCustomButton
+executeCustomButton createCustomLink getCustomLinks getCustomLinkDetails updateCustomLink updateCustomLinkWithParameterId
+```
+
+Safeguards:
+
+ Activation and deactivation Actions are included because publishing is part of development. Verify the affected records after activating a workflow or blueprint.
+ `postWorkflowRule` requires `getWorkflowConfigurations` first; trigger availability is module-specific.
+ Blueprint structural changes on ever-activated blueprints use the clone pattern, not `putBlueprintId`.
+
+## CRM Administrator
+
+Do not create a reusable blanket profile. Add high-impact security and organization Actions individually for the current task and remove them again when the task is complete. This includes profiles, roles, users, sharing, territories, portals, sandboxes, backups and other CRM administration.
 
 ## Explicitly excluded from normal profiles
 
