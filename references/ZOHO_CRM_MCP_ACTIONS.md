@@ -5,6 +5,8 @@
 **Quelle:** Export der in Zoho CRM verfügbaren MCP-Actions
 
 > Diese Datei ist der vollständige allgemeine Actions-Katalog. Welche Actions auf einem konkreten Kunden-MCP tatsächlich aktiviert sind, muss immer mit `mcporter list <KUNDEN_MCP_URL>` geprüft werden.
+>
+> Blueprint action descriptions include unverified operational claims. For current API behavior, documented limitations, and tested versus unverified guidance, use [BLUEPRINTS_API.md](BLUEPRINTS_API.md). In particular, do not update every transition solely to set `modified_time` or assume missing chart data always causes a silent activation failure.
 
 | Action | Beschreibung | Stand |
 | :--- | :--- | :--- |

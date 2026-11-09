@@ -155,10 +155,11 @@ Do not file skill issues for endpoint/auth/profile setup, rate limits, transient
 - [Action profiles](references/ACTION_PROFILES.md): recommended least-privilege selections for new MCP servers
 - [Complete CRM Actions catalog](references/ZOHO_CRM_MCP_ACTIONS.md): all known CRM Actions and descriptions
 - [Functions API](references/FUNCTIONS_API.md): create, update, and verify Deluge functions through MCP (`createFunctions`, `updateFunction`, naming rules, Button category)
+- [Blueprints API](references/BLUEPRINTS_API.md): inspect, migrate, and verify Blueprint states, transitions, chart data, draft versions, and record mappings
 - [Multi-account profiles](references/MULTI_ACCOUNT.md): portable endpoint selection for one or many Zoho accounts
 - [Contributing guide](CONTRIBUTING.md): issue and pull request workflows for humans and agents
 
-Load the profile reference when configuring a connection. Load the full catalog only when the profile lacks a required Action. Load the Functions API reference before creating or updating CRM functions.
+Load the profile reference when configuring a connection. Load the full catalog only when the profile lacks a required Action. Load the Functions API reference before creating or updating CRM functions, and the Blueprints API reference before inspecting or changing Blueprint configurations.
 
 ## Troubleshooting and safety
 
