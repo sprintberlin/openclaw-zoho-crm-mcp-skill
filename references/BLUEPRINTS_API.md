@@ -146,3 +146,9 @@ This is a shape example, not a complete mapping. Construct and validate every re
 - [Activate a Blueprint](https://www.zoho.com/crm/developer/docs/api/v8/activate-blueprint.html)
 - [Get states](https://www.zoho.com/crm/developer/docs/api/v8/blueprint-states.html) and [transitions](https://www.zoho.com/crm/developer/docs/api/v8/blueprint-transitions.html)
 - [Get a record's available transitions](https://www.zoho.com/crm/developer/docs/api/v8/blueprint-details.html) and [execute a record transition](https://www.zoho.com/crm/developer/docs/api/v8/update-blueprint.html)
+
+### Deduplication and Editor Persistence Anomalies
+
+- **Triple Node Stacking in `chart_data`:** When multiple automated or browser-level `loadFlowChart` / `saveDraftBtn` calls execute without resetting the DOM canvas (`#canvas [nodeid]`), Zoho's internal `ProcessBuilder` appends the current node positions to `chart_data.nodes` instead of replacing them. This results in exact multiples (e.g. 42 nodes for a 14-state machine, exactly 3 entries per state). In the UI, the boxes render directly on top of each other, making transitions and labels appear duplicated and messy.
+- **Published Blueprint Immutability:** Once a Blueprint status is `Active` (`Published`), Zoho CRM rejects top-level `putBlueprintId` updates with `{"code":"NOT_ALLOWED","message":"Published blueprint cannot be updated"}`. Furthermore, automated `cloneBlueprint` with `type: "dependent"` can fail with internal errors if layout/pipeline metadata does not align identically.
+- **Remediation:** Any layout or graph modification on a published Blueprint must either be performed directly within an authenticated editor session where `saveProcessDetails` / draft submission is permitted, or cloned cleanly via the UI/supported dependent clone flow, pruned to 1 node per state ID, and re-activated with explicit `move_records` and `map_states`.
