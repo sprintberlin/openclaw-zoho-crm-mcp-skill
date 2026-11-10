@@ -30,7 +30,7 @@ Treat the endpoint as a credential. Use the live schema for the exact tool argum
 2. Obtain the Blueprint's current active-record count with `getBlueprintRecordsCount`. Count again before any replacement or activation, because it can change.
 3. Fetch individual state and transition details. The bulk state and transition APIs require a comma-separated `ids` query parameter, not just a Blueprint ID. Get the IDs from the expanded Blueprint response. State details include `pick_list_value` and escalation data; transition details include trigger type, owners, criteria, during-inputs, and actions.
 4. Resolve target module, layout, process field, picklist values, users, roles, and related automation actions from the target organization. IDs are organization-specific. Map actual values and API names deliberately; a translated display name alone is not proof of the correct value.
-5. Compare entry criteria; states and escalation triggers; transition criteria, `trigger_type`, timing, owners, inputs, and after-actions; common transitions and their source states; logical connections and `chart_data`. Check notification recipients, units, and duration as well as action IDs.
+5. Compare entry `criteria`; states and escalation triggers; per-transition `criteria`, `trigger_type`, `trigger_details`, timing, owners, inputs, and after-actions; common-transition `global` / `include_states` and source states; logical connections and `chart_data`. Check notification recipients, units, and duration as well as action IDs.
 
 Example read-only MCP arguments for the expanded Blueprint:
 
@@ -105,7 +105,7 @@ Zoho's [state creation API](https://www.zoho.com/crm/developer/docs/api/v8/creat
 
 ## Activate and protect records
 
-Before activation, independently verify draft details, criteria, semantic parity, trigger durations, owners, actions, and the visual chart after a fresh reload. Check the current record count and understand the effect on records and side effects. Do not deactivate or delete a live Blueprint just to make an API update work.
+Before activation, independently verify draft entry criteria, individual transition `trigger_details` and `global` / `include_states`, the logical graph, owners, actions, trigger durations, and the visual chart after a fresh reload. Verify semantic parity rather than relying on visual counts. Check the current record count and understand the effect on records and side effects. Do not deactivate or delete a live Blueprint just to make an API update work.
 
 Zoho's [activation API](https://www.zoho.com/crm/developer/docs/api/v8/activate-blueprint.html) requires `move_records`. When republishing a draft:
 
@@ -153,9 +153,9 @@ This is a shape example, not a complete mapping. Construct and validate every re
 - A Blueprint that has been published was rejected by `putBlueprintId` with `NOT_ALLOWED: Published blueprint cannot be updated`, both while active and after deactivation. Deactivating it is not a workaround, and may affect records; check the record count and activation semantics first.
 - One dependent-clone request returned `INTERNAL_ERROR`; its cause is unknown. Re-list Blueprints after an ambiguous clone response before retrying. Use documented draft/clone operations, and verify all settings and the editor before any activation or record migration.
 
-### Deduplication and Publishing Resolution (2026-11-10)
+### Clone counts and activation observations
 
-- Cloned drafts created from a triple-stacked canvas cleanly reset node duplication to exactly 14 nodes and 15 connections upon initial clone creation.
-- When activating a draft blueprint whose base version shares the same name, Zoho CRM rejects activation with `INVALID_DATA: Already a blueprint with same name exists`.
-- Resolving the name constraint requires updating the draft blueprint name via `putBlueprintId` before calling `activateBlueprint`.
-- Publishing the clean draft blueprint via `activateBlueprint` establishes the clean 14-node, 15-connection topology as the active process for the module.
+- In one observed instance, an active clone had 14 chart nodes versus 42 in its source, but live read-back showed missing entry criteria, empty automatic-transition `trigger_details` (`{}`), 15 logical connections versus 35 in the source, common transitions that lost source states, and differing owner mapping. The visual cleanup did not establish functional equivalence.
+- Treat visual node and connection counts as a starting hint only. Before any activation, verify from live read-back: entry `criteria`; individual transition details including `trigger_details` and `global` / `include_states`; the full logical graph (source-state, transition, and target-state semantics); and owners. Do not activate on the basis of visual counts alone.
+- In that instance, an activation attempt returned `INVALID_DATA` for a duplicate Blueprint name; the draft was successfully renamed via `putBlueprintId` and the clone was later activated. Neither the conflict nor the rename establishes a universal requirement or semantic equivalence.
+- The MCP transition-update schema may not expose `trigger_details`; inspect the live schema. Never infer a successful fix from in-memory assignments alone; verify persisted values by server read-back.
