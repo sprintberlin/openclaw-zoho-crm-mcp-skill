@@ -152,3 +152,10 @@ This is a shape example, not a complete mapping. Construct and validate every re
 - In one case, the server returned 42 chart nodes for 14 distinct states after repeated in-memory canvas reloads and a save; every state had three entries, and the editor showed stacked boxes. The exact server-side cause and a safe deduplication procedure were not established. Check saved node identity, positions and the freshly loaded editor; do not inject a reconstructed chart or call private save functions to force a fix.
 - A Blueprint that has been published was rejected by `putBlueprintId` with `NOT_ALLOWED: Published blueprint cannot be updated`, both while active and after deactivation. Deactivating it is not a workaround, and may affect records; check the record count and activation semantics first.
 - One dependent-clone request returned `INTERNAL_ERROR`; its cause is unknown. Re-list Blueprints after an ambiguous clone response before retrying. Use documented draft/clone operations, and verify all settings and the editor before any activation or record migration.
+
+### Deduplication and Publishing Resolution (2026-11-10)
+
+- Cloned drafts created from a triple-stacked canvas cleanly reset node duplication to exactly 14 nodes and 15 connections upon initial clone creation.
+- When activating a draft blueprint whose base version shares the same name, Zoho CRM rejects activation with `INVALID_DATA: Already a blueprint with same name exists`.
+- Resolving the name constraint requires updating the draft blueprint name via `putBlueprintId` before calling `activateBlueprint`.
+- Publishing the clean draft blueprint via `activateBlueprint` establishes the clean 14-node, 15-connection topology as the active process for the module.
